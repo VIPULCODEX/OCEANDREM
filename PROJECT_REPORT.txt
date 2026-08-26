@@ -226,7 +226,7 @@ spec. Read this section before telling anyone the project is "done".
 
   [DONE] PoC demo over the region
       - Two working UIs exist and were smoke-tested this session:
-          1. Streamlit app (app.py) -- full interactive app, Sea Green
+          1. Streamlit app (streamlit_app.py) -- full interactive app, Sea Green
              themed, includes a Marine Heatwave tab.
           2. A static dashboard (public/) -- Vercel-deployable, zero
              server, live-simulated playback through the synthetic 90-day
@@ -286,7 +286,7 @@ spec. Read this section before telling anyone the project is "done".
                             subsamples INSAT-3DR SST passes.
   export_real_data.py      Bakes real_data.py output into
                             public/data_real.json (~1 MB).
-  app.py                   Streamlit UI (full interactive app), Sea Green
+  streamlit_app.py                   Streamlit UI (full interactive app), Sea Green
                             themed, tabs: Marine Heatwave / Overview / Model
                             Performance / Explore Predictions / Pred vs
                             Actual. Reads only from ocean_pipeline_demo.py
@@ -352,7 +352,7 @@ spec. Read this section before telling anyone the project is "done".
     # push to GitHub, import repo in Vercel -- vercel.json handles the rest.
 
   Streamlit app (Hugging Face Spaces or local):
-    streamlit run app.py
+    streamlit run streamlit_app.py
 
   Both read ocean_pipeline_demo.py as their synthetic source of truth; only
   the static dashboard currently also shows the real MOSDAC/CMEMS data.
