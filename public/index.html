@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sea Green | Indian Ocean Marine Heatwave &amp; Subsurface Intelligence</title>
+  <meta name="description" content="Sea Green: reconstructing subsurface ocean temperature from surface satellite data to monitor marine heatwaves in the North Indian Ocean." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%8A%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="brand">
+        <div class="logo">🌊</div>
+        <div>
+          <h1>Sea Green</h1>
+          <p>Indian Ocean Marine Heatwave &amp; Subsurface Temperature Intelligence</p>
+        </div>
+      </div>
+      <div class="controls">
+        <div class="live-badge"><span class="dot"></span><span id="liveLabel">Day 0 / 90</span></div>
+        <button class="ctrl" id="playBtn">⏸ Pause</button>
+        <button class="ctrl" id="speedBtn">1x</button>
+      </div>
+    </header>
+
+    <div class="disclaimer">
+      <b>⚠ Synthetic validation data.</b> This build runs on a physically-motivated
+      simulation (Argo profiles + surface fields), not a live feed — the sandbox this
+      was built in has no outbound network access to ARGO/MOSDAC/Copernicus. The pipeline,
+      model, and every chart here are real; swapping in live data is a config flip, documented
+      in <code>ocean_pipeline_demo.py</code> and the Methodology panel below.
+    </div>
+
+    <section class="kpi-row">
+      <div class="kpi">
+        <div class="label">Basin SST Anomaly</div>
+        <div class="value" id="kpiAnomaly">–</div>
+        <div class="sub" id="kpiCategory">–</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Heatwave Status</div>
+        <div class="value"><span class="chip Normal" id="kpiChip">Normal</span></div>
+        <div class="sub" id="kpiPeak">Season peak: –</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Model Skill Gain</div>
+        <div class="value" id="kpiSkill">–</div>
+        <div class="sub">vs. climatology baseline, avg. RMSE reduction</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Argo Floats Tracked</div>
+        <div class="value" id="kpiFloats">–</div>
+        <div class="sub">test-set profiles, North Indian Ocean</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Region</div>
+        <div class="value" style="font-size:17px">5–30°N, 45–105°E</div>
+        <div class="sub">Arabian Sea → Bay of Bengal</div>
+      </div>
+    </section>
+
+    <section class="grid-2">
+      <div class="panel">
+        <h2>Surface SST + Argo Floats
+          <select id="daySelect"></select>
+        </h2>
+        <div class="desc">Satellite SST grid with Argo float positions overlaid. Toggle the spatiotemporal cluster overlay (paper-inspired grouping of regions with shared thermocline behavior).</div>
+        <div class="toggle-row">
+          <label><input type="checkbox" id="clusterToggle" /> Show spatiotemporal clusters</label>
+        </div>
+        <div id="mapChart" style="height:420px"></div>
+      </div>
+      <div class="panel">
+        <h2>Marine Heatwave Monitor</h2>
+        <div class="desc">Basin-averaged SST anomaly vs. climatology, full 90-day window. Shaded bands follow the Hobday marine-heatwave category scale.</div>
+        <div id="heatwaveChart" style="height:420px"></div>
+      </div>
+    </section>
+
+    <section class="grid-3">
+      <div class="panel">
+        <h2>Model Skill: RMSE per Depth</h2>
+        <div class="desc">Random Forest (surface → subsurface) vs. a naive climatology baseline.</div>
+        <div id="rmseChart" style="height:340px"></div>
+      </div>
+      <div class="panel">
+        <h2>Predicted vs. Actual
+          <select id="depthSelect"></select>
+        </h2>
+        <div class="desc">Per-depth agreement across all held-out Argo test profiles.</div>
+        <div id="scatterChart" style="height:340px"></div>
+      </div>
+    </section>
+
+    <section class="grid-2">
+      <div class="panel">
+        <h2>Vertical Profile Explorer
+          <select id="profileSelect"></select>
+        </h2>
+        <div class="desc">Reconstructed subsurface temperature profile vs. the true Argo profile for one float.</div>
+        <div id="profileChart" style="height:380px"></div>
+      </div>
+      <div class="panel">
+        <h2>Satellite Context — North Indian Ocean</h2>
+        <div class="desc">Live NASA Worldview true-color / SST view of the study region (loads from your browser — needs internet at view time).</div>
+        <div class="satellite-embed">
+          <iframe id="worldviewFrame" loading="lazy" title="NASA Worldview — North Indian Ocean"></iframe>
+        </div>
+        <p style="font-size:12px; margin-top:8px;">
+          <a id="worldviewLink" href="#" target="_blank" rel="noopener">Open full Worldview map in a new tab ↗</a>
+          <span style="color:var(--text-dim)"> — if the embed above is blank, NASA's site is blocking iframing; use the link.</span>
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <h2 style="font-size:16px; margin-bottom:10px;">Methodology &amp; Data Sources</h2>
+      <div class="source-grid">
+        <div class="source-card">
+          <h3>ARGO Floats</h3>
+          <p>Sparse in-situ subsurface temperature/salinity profiles. Real pipeline hook uses
+          <code>argopy.DataFetcher().region([...])</code> — see <code>get_argo_data()</code>.</p>
+        </div>
+        <div class="source-card">
+          <h3>MOSDAC / ISRO</h3>
+          <p>INSAT-3D/3DR SST &amp; OSCAT wind fields for the Indian Ocean basin — the intended
+          source for the surface feature grid (<code>get_satellite_grid()</code>) in production.</p>
+        </div>
+        <div class="source-card">
+          <h3>NASA Worldview / GIBS</h3>
+          <p>VIIRS / MODIS / GOES true-color imagery for visual context and coastline/eddy
+          sanity-checking alongside the numeric SST grid.</p>
+        </div>
+        <div class="source-card">
+          <h3>Adaptive Clustering</h3>
+          <p>Loo et al. 2026, <i>arXiv:2605.00860</i> — spatiotemporal clustering to group
+          profiles sharing thermocline structure before reconstruction; approximated here with
+          a lightweight KMeans over (lat, lon, day, SSH).</p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div>Team <b>Sea Green</b> — OceanEmbed subsurface reconstruction pipeline</div>
+      <div>Built for a 2-hour sprint · Streamlit full app + this static dashboard share the same pipeline (<code>ocean_pipeline_demo.py</code>)</div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

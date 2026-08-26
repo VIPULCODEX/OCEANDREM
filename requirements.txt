@@ -1,0 +1,10 @@
+streamlit
+plotly
+pandas
+numpy
+scikit-learn
+matplotlib
+
+# Optional, only needed once USE_SYNTHETIC_DATA=False in ocean_pipeline_demo.py:
+# argopy               # real Argo float profiles
+# copernicusmarine     # real satellite SST/SSH/SSS/wind grids
