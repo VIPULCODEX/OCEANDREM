@@ -4,7 +4,13 @@
 
 Argo floats measure subsurface temperature directly but are sparse in space and time. Satellites see the surface (SST, SSH, salinity, wind) continuously and everywhere. This pipeline learns the surface → subsurface relationship with a Random Forest, so subsurface structure can be estimated anywhere in the basin — and tracks basin-wide SST anomaly against climatology to flag marine heatwave events (Hobday-style categories: Watch / Warning / Severe / Extreme).
 
-> ⚠ **Ships on synthetic data.** The pipeline, model, and every chart are real, but the numbers come from a physically-motivated simulation, not a live feed — this was built without outbound network access to ARGO/MOSDAC/Copernicus. Real-data hooks are already wired in `ocean_pipeline_demo.py` (see below).
+> ℹ **Mixed real + simulated.** The dashboard's **Live Data** section runs on real
+> **MOSDAC (INSAT-3DR) satellite SST** and real **CMEMS `thetao` reanalysis** data
+> (current as of 25–26 Aug 2026) — see [Real data](#real-data-mosdac--cmems) below.
+> The **Pipeline Validation** section (Argo floats, subsurface reconstruction, RMSE)
+> still runs on a physically-motivated simulation with an injected heatwave event,
+> since a real multi-depth Argo/subsurface pull wasn't available for this build.
+> Real-data hooks for that half are already wired in `ocean_pipeline_demo.py`.
 
 ## Two ways to run this
 
@@ -36,7 +42,36 @@ streamlit run app.py
 
 For a Space: pick the **Streamlit** SDK, point it at this repo, and it picks up `requirements.txt` and `.streamlit/config.toml` automatically.
 
-## Going live with real data
+## Real data: MOSDAC + CMEMS
+
+`real_data.py` reads two real datasets and `export_real_data.py` bakes them into
+`public/data_real.json` (committed; the raw source files are not — they're
+100s of MB and gitignored):
+
+- **MOSDAC** — `MOSDAC/*.h5`, INSAT-3DR L2B SST (ISRO/SAC), half-hourly, 25 Aug 2026.
+  8 evenly-spaced real passes, cropped to the study region, drive the "Live
+  Satellite Pass" panel.
+- **CMEMS** — `cmems_mod_glo_phy-thetao_*.nc`, `GLOBAL_ANALYSISFORECAST_PHY_001_024`
+  (Mercator Ocean), 6-hourly, 1–26 Aug 2026, single near-surface level (~0.49 m).
+  Daily-mean basin SST drives the real "Basin SST Trend" chart and the live
+  anomaly-vs-window-mean status chip.
+
+To refresh with new files, drop them in `MOSDAC/` / the repo root and re-run:
+
+```bash
+pip install h5py xarray netCDF4   # only needed for this step
+python export_real_data.py
+```
+
+Note this file only has one depth level, so it can't feed the multi-depth
+subsurface reconstruction — that's why the ML/heatwave-detection demo still
+runs on the simulation described above. A real subsurface signal would come
+from a multi-depth CMEMS `thetao` pull (via `copernicusmarine`) or real Argo
+profiles (via `argopy`); both need supporting infra (an account + working
+build toolchain for `argopy`'s dependencies) that wasn't available in this
+sprint.
+
+## Going live with real data (subsurface reconstruction)
 
 Two integration points in `ocean_pipeline_demo.py`, both currently gated behind `USE_SYNTHETIC_DATA = True`:
 
@@ -54,13 +89,16 @@ Flip the flag, fill in the two commented API calls, re-run `export_data.py` (or 
 ## Repo layout
 
 ```
-ocean_pipeline_demo.py   # data layer, heatwave detection, clustering, model, training/eval — the shared core
-export_data.py           # bakes pipeline output into public/data.json for the static dashboard
+ocean_pipeline_demo.py   # simulated data layer, heatwave detection, clustering, model, training/eval
+export_data.py           # bakes simulated pipeline output into public/data.json
+real_data.py             # loaders for real MOSDAC (.h5) + CMEMS (.nc) files
+export_real_data.py      # bakes real data into public/data_real.json
 app.py                   # Streamlit UI (full interactive app)
-public/                  # static dashboard (index.html / style.css / app.js / data.json) — deploy target for Vercel
+public/                  # static dashboard (index.html / style.css / app.js / data*.json) — deploy target for Vercel
 vercel.json              # points Vercel at public/
 .streamlit/config.toml   # Sea Green theme for the Streamlit app
 requirements.txt
+MOSDAC/, cmems_*.nc       # real source files (gitignored — large, regenerate data_real.json locally)
 ```
 
 Team **Sea Green**.

@@ -27,11 +27,13 @@
     </header>
 
     <div class="disclaimer">
-      <b>⚠ Synthetic validation data.</b> This build runs on a physically-motivated
-      simulation (Argo profiles + surface fields), not a live feed — the sandbox this
-      was built in has no outbound network access to ARGO/MOSDAC/Copernicus. The pipeline,
-      model, and every chart here are real; swapping in live data is a config flip, documented
-      in <code>ocean_pipeline_demo.py</code> and the Methodology panel below.
+      <b>ℹ Mixed real + simulated data.</b> The <b>Live Data</b> section below is real
+      MOSDAC (INSAT-3DR) satellite SST and CMEMS reanalysis SST, current as of 25–26 Aug
+      2026. The <b>Pipeline Validation</b> section further down (Argo floats, subsurface
+      reconstruction, the RMSE/profile charts) runs on a physically-motivated simulation
+      with an injected heatwave, because a real multi-depth Argo/subsurface pull wasn't
+      available for this build — real-data hooks are already wired in
+      <code>ocean_pipeline_demo.py</code> and documented in the README.
     </div>
 
     <section class="kpi-row">
@@ -62,6 +64,55 @@
       </div>
     </section>
 
+    <section class="real-section">
+      <h2 class="section-title"><span class="reddot"></span> Live Data — MOSDAC (ISRO) &amp; CMEMS (Copernicus Marine)</h2>
+      <div class="desc">Genuine satellite / reanalysis data pulled for this build — not simulated. Basin SST is monitored against its own recent baseline; the satellite pass below is real INSAT-3DR imagery-derived SST from 25 Aug 2026.</div>
+
+      <div class="kpi-row kpi-row-3">
+        <div class="kpi">
+          <div class="label">Live Basin SST (CMEMS)</div>
+          <div class="value" id="realSstValue">–</div>
+          <div class="sub" id="realSstDate">–</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Anomaly vs. window mean</div>
+          <div class="value"><span class="chip Normal" id="realChip">–</span></div>
+          <div class="sub" id="realAnomalyValue">–</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Monitoring window</div>
+          <div class="value" id="realWindow" style="font-size:17px">–</div>
+          <div class="sub">CMEMS thetao, 6-hourly, ~0.5 m depth</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <h2>Basin SST Trend (Real, Daily Mean)</h2>
+          <div class="desc">Actual CMEMS surface temperature for the study region, day by day. No injected event — this is what the region is really doing right now.</div>
+          <div id="realTrendChart" class="chart chart-md"></div>
+        </div>
+        <div class="panel">
+          <h2>Live Satellite Pass — INSAT-3DR
+            <span class="controls" style="gap:6px">
+              <button class="ctrl" id="realPlayBtn" style="padding:4px 9px;font-size:12px">⏸</button>
+              <span id="realFrameLabel" style="font-size:12px;color:var(--text-dim)">–</span>
+            </span>
+          </h2>
+          <div class="desc">Real half-hourly INSAT-3DR SST passes (MOSDAC/ISRO), cropped to the study region.</div>
+          <div id="realMapChart" class="chart chart-md"></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"><span>Pipeline Validation — Simulated Monsoon-Season Scenario</span></div>
+    <div class="desc" style="margin:-8px 0 16px;">
+      The panels below run the same detection &amp; reconstruction pipeline against a
+      physically-motivated 90-day simulation with an injected heatwave event, so the
+      alerting and ML logic can be demonstrated and validated even while the real window
+      above is quiet.
+    </div>
+
     <section class="grid-2">
       <div class="panel">
         <h2>Surface SST + Argo Floats
@@ -71,12 +122,12 @@
         <div class="toggle-row">
           <label><input type="checkbox" id="clusterToggle" /> Show spatiotemporal clusters</label>
         </div>
-        <div id="mapChart" style="height:420px"></div>
+        <div id="mapChart" class="chart chart-lg"></div>
       </div>
       <div class="panel">
-        <h2>Marine Heatwave Monitor</h2>
-        <div class="desc">Basin-averaged SST anomaly vs. climatology, full 90-day window. Shaded bands follow the Hobday marine-heatwave category scale.</div>
-        <div id="heatwaveChart" style="height:420px"></div>
+        <h2>Heatwave Stress-Test (Simulated Event)</h2>
+        <div class="desc">Basin-averaged SST anomaly vs. climatology, full 90-day window, with an injected warm event so the detector has something to catch. Shaded bands follow the Hobday marine-heatwave category scale.</div>
+        <div id="heatwaveChart" class="chart chart-lg"></div>
       </div>
     </section>
 
@@ -84,14 +135,14 @@
       <div class="panel">
         <h2>Model Skill: RMSE per Depth</h2>
         <div class="desc">Random Forest (surface → subsurface) vs. a naive climatology baseline.</div>
-        <div id="rmseChart" style="height:340px"></div>
+        <div id="rmseChart" class="chart chart-md"></div>
       </div>
       <div class="panel">
         <h2>Predicted vs. Actual
           <select id="depthSelect"></select>
         </h2>
         <div class="desc">Per-depth agreement across all held-out Argo test profiles.</div>
-        <div id="scatterChart" style="height:340px"></div>
+        <div id="scatterChart" class="chart chart-md"></div>
       </div>
     </section>
 
@@ -101,7 +152,7 @@
           <select id="profileSelect"></select>
         </h2>
         <div class="desc">Reconstructed subsurface temperature profile vs. the true Argo profile for one float.</div>
-        <div id="profileChart" style="height:380px"></div>
+        <div id="profileChart" class="chart chart-md"></div>
       </div>
       <div class="panel">
         <h2>Satellite Context — North Indian Ocean</h2>
@@ -125,9 +176,10 @@
           <code>argopy.DataFetcher().region([...])</code> — see <code>get_argo_data()</code>.</p>
         </div>
         <div class="source-card">
-          <h3>MOSDAC / ISRO</h3>
-          <p>INSAT-3D/3DR SST &amp; OSCAT wind fields for the Indian Ocean basin — the intended
-          source for the surface feature grid (<code>get_satellite_grid()</code>) in production.</p>
+          <h3>MOSDAC / ISRO + CMEMS</h3>
+          <p><b>Real, live in this build</b> (see Live Data section above): INSAT-3DR L2B SST
+          (ISRO/SAC, 25 Aug 2026) and CMEMS <code>thetao</code> reanalysis (1–26 Aug 2026),
+          baked into <code>public/data_real.json</code> by <code>export_real_data.py</code>.</p>
         </div>
         <div class="source-card">
           <h3>NASA Worldview / GIBS</h3>

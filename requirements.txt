@@ -8,3 +8,9 @@ matplotlib
 # Optional, only needed once USE_SYNTHETIC_DATA=False in ocean_pipeline_demo.py:
 # argopy               # real Argo float profiles
 # copernicusmarine     # real satellite SST/SSH/SSS/wind grids
+
+# Needed only to run export_real_data.py (offline data-prep step; not needed
+# to serve public/ or to run app.py, since it just reads the derived JSON):
+h5py
+xarray
+netCDF4

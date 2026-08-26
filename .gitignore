@@ -3,3 +3,9 @@ __pycache__/
 *.pyc
 .DS_Store
 .vercel
+
+# Raw real-data source files -- large (100s of MB), not meant for git.
+# Derived, compact JSON (public/data_real.json) is committed instead.
+# Regenerate locally with: python export_real_data.py
+MOSDAC/
+*.nc

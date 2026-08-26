@@ -21,6 +21,11 @@ let playing = true;
 let speed = 1;
 let timer = null;
 
+let REAL = null;
+let realFrameIdx = 0;
+let realPlaying = true;
+let realTimer = null;
+
 async function boot() {
   const res = await fetch("data.json");
   DATA = await res.json();
@@ -39,6 +44,78 @@ async function boot() {
   });
   document.getElementById("depthSelect").addEventListener("change", drawScatter);
   document.getElementById("profileSelect").addEventListener("change", drawProfile);
+
+  bootReal();
+}
+
+async function bootReal() {
+  try {
+    const res = await fetch("data_real.json");
+    REAL = await res.json();
+  } catch (e) {
+    console.warn("real data unavailable", e);
+    return;
+  }
+
+  const c = REAL.cmems;
+  document.getElementById("realSstValue").textContent = `${c.series[c.series.length - 1].sst.toFixed(2)}°C`;
+  document.getElementById("realSstDate").textContent = `as of ${c.window_end}`;
+  document.getElementById("realAnomalyValue").textContent =
+    `${c.today_anomaly >= 0 ? "+" : ""}${c.today_anomaly.toFixed(2)}°C vs. window mean (${c.window_mean_sst.toFixed(2)}°C)`;
+  document.getElementById("realWindow").textContent = `${c.window_start} → ${c.window_end}`;
+  const chip = document.getElementById("realChip");
+  chip.textContent = c.today_category;
+  chip.className = `chip ${c.today_category}`;
+
+  Plotly.newPlot(
+    "realTrendChart",
+    [{
+      x: c.series.map((d) => d.date), y: c.series.map((d) => d.sst),
+      mode: "lines+markers", line: { color: "#3fcf8e", width: 2 }, marker: { size: 5 },
+      name: "Daily mean SST",
+    }],
+    { ...PLOTLY_DARK, xaxis: { title: "Date", gridcolor: "#1c4a41" }, yaxis: { title: "SST (°C)", gridcolor: "#1c4a41" } },
+    { displayModeBar: false, responsive: true }
+  );
+
+  renderRealFrame(0);
+  document.getElementById("realPlayBtn").addEventListener("click", toggleRealPlay);
+  startRealLoop();
+}
+
+function renderRealFrame(idx) {
+  realFrameIdx = idx;
+  const frame = REAL.mosdac_frames[idx];
+  Plotly.react(
+    "realMapChart",
+    [{
+      x: frame.lon, y: frame.lat, mode: "markers", type: "scatter",
+      marker: { size: 6, color: frame.sst, colorscale: "Thermal", colorbar: { title: "SST °C" } },
+      hovertemplate: "SST %{marker.color:.1f}°C<extra></extra>",
+    }],
+    {
+      ...PLOTLY_DARK,
+      xaxis: { title: "Longitude", range: [45, 105], gridcolor: "#1c4a41" },
+      yaxis: { title: "Latitude", range: [5, 30], gridcolor: "#1c4a41" },
+      showlegend: false,
+    },
+    { displayModeBar: false, responsive: true }
+  );
+  document.getElementById("realFrameLabel").textContent = `${frame.time} GMT, 25 Aug`;
+}
+
+function startRealLoop() {
+  clearInterval(realTimer);
+  if (!realPlaying || !REAL) return;
+  realTimer = setInterval(() => {
+    renderRealFrame((realFrameIdx + 1) % REAL.mosdac_frames.length);
+  }, 1600);
+}
+
+function toggleRealPlay() {
+  realPlaying = !realPlaying;
+  document.getElementById("realPlayBtn").textContent = realPlaying ? "⏸" : "▶";
+  startRealLoop();
 }
 
 function populateSelectors() {
