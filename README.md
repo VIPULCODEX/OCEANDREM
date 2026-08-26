@@ -14,7 +14,7 @@ Argo floats measure subsurface temperature directly but are sparse in space and 
 
 ## Two ways to run this
 
-| | Static dashboard (`/public`) | Full app (`app.py`) |
+| | Static dashboard (`/public`) | Full app (`streamlit_app.py`) |
 |---|---|---|
 | Stack | Plain HTML/CSS/JS + Plotly.js (CDN) | Streamlit |
 | Deploy target | **Vercel** (zero server, reads a pre-baked `data.json`) | **Hugging Face Spaces** (or any host that runs Python) — use this if the dashboard needs to run the model live / interactively, or if Vercel's function memory limits become an issue |
@@ -37,7 +37,7 @@ To refresh the dashboard with new results, re-run `export_data.py` and commit th
 ### Full interactive app → Hugging Face Spaces (or local)
 
 ```bash
-streamlit run app.py
+streamlit run streamlit_app.py
 ```
 
 For a Space: pick the **Streamlit** SDK, point it at this repo, and it picks up `requirements.txt` and `.streamlit/config.toml` automatically.
@@ -78,7 +78,7 @@ Two integration points in `ocean_pipeline_demo.py`, both currently gated behind 
 - **`get_argo_data()`** — real Argo profiles via [`argopy`](https://argopy.readthedocs.io/): `DataFetcher().region([lon_min, lon_max, lat_min, lat_max, depth_min, depth_max, start, end])`.
 - **`get_satellite_grid()`** — real surface fields. For the Indian Ocean specifically, swap in **MOSDAC / ISRO** INSAT-3D/3DR SST and OSCAT wind products (or Copernicus Marine as a global fallback).
 
-Flip the flag, fill in the two commented API calls, re-run `export_data.py` (or just run `app.py` directly) — everything downstream (training, metrics, heatwave detection, clustering, all charts) is unchanged.
+Flip the flag, fill in the two commented API calls, re-run `export_data.py` (or just run `streamlit_app.py` directly) — everything downstream (training, metrics, heatwave detection, clustering, all charts) is unchanged.
 
 ## Methodology notes
 
@@ -93,7 +93,7 @@ ocean_pipeline_demo.py   # simulated data layer, heatwave detection, clustering,
 export_data.py           # bakes simulated pipeline output into public/data.json
 real_data.py             # loaders for real MOSDAC (.h5) + CMEMS (.nc) files
 export_real_data.py      # bakes real data into public/data_real.json
-app.py                   # Streamlit UI (full interactive app)
+streamlit_app.py                   # Streamlit UI (full interactive app)
 public/                  # static dashboard (index.html / style.css / app.js / data*.json) — deploy target for Vercel
 vercel.json              # points Vercel at public/
 .streamlit/config.toml   # Sea Green theme for the Streamlit app
