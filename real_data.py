@@ -26,7 +26,11 @@ LON_RANGE = (45, 105)
 HEATWAVE_CATEGORIES = [(0.5, "Watch"), (1.0, "Warning"), (1.5, "Severe"), (2.0, "Extreme")]
 
 MOSDAC_DIR = "MOSDAC"
-CMEMS_GLOB = "cmems_mod_glo_phy-thetao_*.nc"
+
+# Resolve CMEMS files by the variable they actually contain, not by filename --
+# the user's downloads get renamed by the browser ("Sea Surface temp.nc",
+# "Sea surface salinity.nc") and don't reliably match a naming convention.
+_VAR_LABEL = {"thetao": "sst", "so": "sss"}
 
 
 def _classify(anomaly):
@@ -37,18 +41,31 @@ def _classify(anomaly):
     return category
 
 
-def load_cmems_series(stride=6):
+def _find_cmems_dataset(varname):
+    for path in sorted(glob.glob("*.nc")):
+        try:
+            ds = xr.open_dataset(path)
+        except Exception:
+            continue
+        if varname in ds.data_vars:
+            return ds, path
+        ds.close()
+    raise FileNotFoundError(f"No .nc file in {os.getcwd()} contains variable '{varname}'")
+
+
+def load_cmems_series(varname="thetao", stride=6):
     """
-    Real basin SST monitor: daily-mean series over the pulled window (Aug 2026),
-    plus one full gridded "current conditions" snapshot (most recent timestep).
+    Real basin surface monitor (SST if varname='thetao', SSS if varname='so'):
+    daily-mean series over the pulled window, plus one gridded "current
+    conditions" snapshot (most recent timestep). Anomaly is against the
+    window's own mean (short-window baseline, not a 30-yr climatology --
+    labelled as such in the UI).
     """
-    path = glob.glob(CMEMS_GLOB)
-    if not path:
-        raise FileNotFoundError(f"No CMEMS file matching {CMEMS_GLOB} in {os.getcwd()}")
-    ds = xr.open_dataset(path[0])
+    ds, path = _find_cmems_dataset(varname)
+    label = _VAR_LABEL.get(varname, varname)
 
     lon_hi = min(LON_RANGE[1], float(ds.longitude.max()))
-    sub = ds["thetao"].isel(depth=0).sel(
+    sub = ds[varname].isel(depth=0).sel(
         latitude=slice(*LAT_RANGE), longitude=slice(LON_RANGE[0], lon_hi)
     )
 
@@ -57,7 +74,7 @@ def load_cmems_series(stride=6):
     window_mean = float(daily.mean())
 
     series = [
-        {"date": str(d.date()), "sst": round(float(v), 3), "anomaly": round(float(v - window_mean), 3)}
+        {"date": str(d.date()), label: round(float(v), 3), "anomaly": round(float(v - window_mean), 3)}
         for d, v in daily.items()
     ]
     today_anomaly = series[-1]["anomaly"]
@@ -69,9 +86,11 @@ def load_cmems_series(stride=6):
     lat_s, lon_s, val_s = lat2d[mask][::stride], lon2d[mask][::stride], vals[mask][::stride]
 
     return {
+        "source_file": os.path.basename(path),
+        "variable": varname,
         "window_start": series[0]["date"],
         "window_end": series[-1]["date"],
-        "window_mean_sst": round(window_mean, 3),
+        f"window_mean_{label}": round(window_mean, 3),
         "series": series,
         "today_anomaly": round(today_anomaly, 3),
         "today_category": _classify(today_anomaly),
@@ -79,7 +98,7 @@ def load_cmems_series(stride=6):
             "time": str(latest.time.values)[:19],
             "lat": [round(float(v), 2) for v in lat_s],
             "lon": [round(float(v), 2) for v in lon_s],
-            "sst": [round(float(v), 2) for v in val_s],
+            label: [round(float(v), 2) for v in val_s],
         },
     }
 
@@ -117,9 +136,13 @@ def load_mosdac_series(n_frames=8, stride=8):
 
 
 if __name__ == "__main__":
-    cmems = load_cmems_series()
-    print("CMEMS window:", cmems["window_start"], "->", cmems["window_end"],
-          "| today anomaly:", cmems["today_anomaly"], cmems["today_category"])
+    sst = load_cmems_series("thetao")
+    print("CMEMS SST window:", sst["window_start"], "->", sst["window_end"],
+          "| today anomaly:", sst["today_anomaly"], sst["today_category"],
+          "| file:", sst["source_file"])
+    sss = load_cmems_series("so")
+    print("CMEMS SSS window:", sss["window_start"], "->", sss["window_end"],
+          "| today anomaly:", sss["today_anomaly"], "| file:", sss["source_file"])
     frames = load_mosdac_series()
     print(f"MOSDAC frames: {len(frames)}, first={frames[0]['time']}, "
           f"points/frame~{len(frames[0]['sst'])}")

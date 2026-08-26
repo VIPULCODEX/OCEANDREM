@@ -55,7 +55,7 @@ N_CLUSTERS = 6  # spatiotemporal clusters (lat, lon, day, ssh) -- see clustering
 USE_SYNTHETIC_DATA = True          # flip to False on your laptop with real data access
 LAT_RANGE = (5, 30)                # North Indian Ocean
 LON_RANGE = (45, 105)
-DEPTH_LEVELS = [50, 100, 200, 500]  # meters -- what we predict
+DEPTH_LEVELS = [0, 5, 10, 20, 30, 50, 75, 100, 125, 150, 200, 300, 500, 700, 1000]  # meters -- standard depths per problem statement
 N_ARGO_PROFILES = 220               # roughly realistic sparse float count for a season
 N_DAYS = 90                         # one monsoon-season-ish window
 GRID_STEP = 1.0                     # degrees, satellite grid resolution for this demo
@@ -289,7 +289,12 @@ def train_and_evaluate(X, Y):
     for col in Y_test.columns:
         rmse_model = mean_squared_error(Y_test[col], preds[col]) ** 0.5
         rmse_base = mean_squared_error(Y_test[col], baseline[col]) ** 0.5
-        results.append({"depth": col, "rmse_model": rmse_model, "rmse_baseline": rmse_base})
+        corr = np.corrcoef(Y_test[col], preds[col])[0, 1]
+        bias = float((preds[col] - Y_test[col]).mean())
+        results.append({
+            "depth": col, "rmse_model": rmse_model, "rmse_baseline": rmse_base,
+            "correlation": corr, "bias": bias,
+        })
 
     return model, X_test, Y_test, preds, pd.DataFrame(results)
 
