@@ -27,13 +27,10 @@
     </header>
 
     <div class="disclaimer">
-      <b>ℹ Mixed real + simulated data.</b> The <b>Live Data</b> section below is real
-      MOSDAC (INSAT-3DR) satellite SST and CMEMS reanalysis SST, current as of 25–26 Aug
-      2026. The <b>Pipeline Validation</b> section further down (Argo floats, subsurface
-      reconstruction, the RMSE/profile charts) runs on a physically-motivated simulation
-      with an injected heatwave, because a real multi-depth Argo/subsurface pull wasn't
-      available for this build — real-data hooks are already wired in
-      <code>ocean_pipeline_demo.py</code> and documented in the README.
+      <b>ℹ Data note:</b> <b>Live Data</b> below is real (MOSDAC + CMEMS, current). The
+      <b>reconstruction model</b> further down is validated on a controlled simulated
+      scenario (real multi-depth subsurface truth wasn't available for this build) —
+      details in the README.
     </div>
 
     <section class="kpi-row">
@@ -105,58 +102,64 @@
       </div>
     </section>
 
-    <div class="divider"><span>Pipeline Validation — Simulated Monsoon-Season Scenario</span></div>
-    <div class="desc" style="margin:-8px 0 16px;">
-      The panels below run the same detection &amp; reconstruction pipeline against a
-      physically-motivated 90-day simulation with an injected heatwave event, so the
-      alerting and ML logic can be demonstrated and validated even while the real window
-      above is quiet.
-    </div>
+    <section class="solution-section">
+      <h2 class="section-title"><span class="bluedot"></span> The Model — Surface → Subsurface Temperature Reconstruction</h2>
+      <div class="desc">
+        This is the core deliverable: a Random Forest trained to predict the vertical
+        temperature profile (15 standard depths, 0–1000 m) from surface observations
+        alone. Shown here on a controlled 90-day scenario with an injected heatwave, so
+        the reconstruction <i>and</i> the detection logic can both be demonstrated end to
+        end (see the data note above for why this run is simulated rather than live).
+      </div>
 
-    <section class="grid-2">
-      <div class="panel">
-        <h2>Surface SST + Argo Floats
-          <select id="daySelect"></select>
-        </h2>
-        <div class="desc">Satellite SST grid with Argo float positions overlaid. Toggle the spatiotemporal cluster overlay (paper-inspired grouping of regions with shared thermocline behavior).</div>
-        <div class="toggle-row">
-          <label><input type="checkbox" id="clusterToggle" /> Show spatiotemporal clusters</label>
+      <div class="grid-2">
+        <div class="panel">
+          <h2>Surface SST + Argo Floats
+            <select id="daySelect"></select>
+          </h2>
+          <div class="desc">Satellite SST grid with Argo float positions overlaid. Toggle the spatiotemporal cluster overlay (paper-inspired grouping of regions with shared thermocline behavior).</div>
+          <div class="toggle-row">
+            <label><input type="checkbox" id="clusterToggle" /> Show spatiotemporal clusters</label>
+          </div>
+          <div id="mapChart" class="chart chart-lg"></div>
         </div>
-        <div id="mapChart" class="chart chart-lg"></div>
-      </div>
-      <div class="panel">
-        <h2>Heatwave Stress-Test (Simulated Event)</h2>
-        <div class="desc">Basin-averaged SST anomaly vs. climatology, full 90-day window, with an injected warm event so the detector has something to catch. Shaded bands follow the Hobday marine-heatwave category scale.</div>
-        <div id="heatwaveChart" class="chart chart-lg"></div>
-      </div>
-    </section>
-
-    <section class="grid-3">
-      <div class="panel">
-        <h2>Model Skill: RMSE per Depth</h2>
-        <div class="desc">Random Forest (surface → subsurface) vs. a naive climatology baseline.</div>
-        <div id="rmseChart" class="chart chart-md"></div>
-        <div class="table-scroll">
-          <table class="metrics-table" id="metricsTable"></table>
+        <div class="panel">
+          <h2>Heatwave Stress-Test (Simulated Event)</h2>
+          <div class="desc">Basin-averaged SST anomaly vs. climatology, full 90-day window, with an injected warm event so the detector has something to catch. Shaded bands follow the Hobday marine-heatwave category scale.</div>
+          <div id="heatwaveChart" class="chart chart-lg"></div>
         </div>
       </div>
-      <div class="panel">
-        <h2>Predicted vs. Actual
-          <select id="depthSelect"></select>
-        </h2>
-        <div class="desc">Per-depth agreement across all held-out Argo test profiles.</div>
-        <div id="scatterChart" class="chart chart-md"></div>
-      </div>
-    </section>
 
-    <section class="grid-2">
+      <div class="grid-3">
+        <div class="panel">
+          <h2>Model Skill: RMSE per Depth</h2>
+          <div class="desc">Random Forest (surface → subsurface) vs. a naive climatology baseline.</div>
+          <div id="rmseChart" class="chart chart-md"></div>
+          <div class="table-scroll">
+            <table class="metrics-table" id="metricsTable"></table>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Predicted vs. Actual
+            <select id="depthSelect"></select>
+          </h2>
+          <div class="desc">Per-depth agreement across all held-out Argo test profiles.</div>
+          <div id="scatterChart" class="chart chart-md"></div>
+        </div>
+      </div>
+
       <div class="panel">
         <h2>Vertical Profile Explorer
           <select id="profileSelect"></select>
         </h2>
-        <div class="desc">Reconstructed subsurface temperature profile vs. the true Argo profile for one float.</div>
+        <div class="desc">Reconstructed subsurface temperature profile vs. the true Argo profile for one float — the model's actual output.</div>
         <div id="profileChart" class="chart chart-md"></div>
       </div>
+    </section>
+
+    <div class="divider"><span>Reference — Satellite Context &amp; Data Sources</span></div>
+
+    <section class="grid-2">
       <div class="panel">
         <h2>Satellite Context — North Indian Ocean</h2>
         <div class="desc">Live NASA Worldview true-color / SST view of the study region (loads from your browser — needs internet at view time).</div>
@@ -167,6 +170,15 @@
           <a id="worldviewLink" href="#" target="_blank" rel="noopener">Open full Worldview map in a new tab ↗</a>
           <span style="color:var(--text-dim)"> — if the embed above is blank, NASA's site is blocking iframing; use the link.</span>
         </p>
+      </div>
+      <div class="panel">
+        <h2>What each section means</h2>
+        <div class="desc" style="margin-bottom:0">
+          <b>Live Data</b> (top) — real, current MOSDAC/CMEMS conditions.<br/>
+          <b>The Model</b> (middle) — the actual reconstruction pipeline: trained,
+          evaluated, and visualized end to end on a controlled scenario.<br/>
+          <b>This section</b> — supporting references and data-source citations only.
+        </div>
       </div>
     </section>
 
