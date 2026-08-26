@@ -88,8 +88,8 @@
 
       <div class="grid-2">
         <div class="panel">
-          <h2>Basin SST Trend (Real, Daily Mean)</h2>
-          <div class="desc">Actual CMEMS surface temperature for the study region, day by day. No injected event — this is what the region is really doing right now.</div>
+          <h2>Basin SST &amp; SSS Trend (Real, Daily Mean)</h2>
+          <div class="desc">Actual CMEMS surface temperature &amp; salinity for the study region, day by day. No injected event — this is what the region is really doing right now.</div>
           <div id="realTrendChart" class="chart chart-md"></div>
         </div>
         <div class="panel">
@@ -136,6 +136,9 @@
         <h2>Model Skill: RMSE per Depth</h2>
         <div class="desc">Random Forest (surface → subsurface) vs. a naive climatology baseline.</div>
         <div id="rmseChart" class="chart chart-md"></div>
+        <div class="table-scroll">
+          <table class="metrics-table" id="metricsTable"></table>
+        </div>
       </div>
       <div class="panel">
         <h2>Predicted vs. Actual
@@ -178,8 +181,8 @@
         <div class="source-card">
           <h3>MOSDAC / ISRO + CMEMS</h3>
           <p><b>Real, live in this build</b> (see Live Data section above): INSAT-3DR L2B SST
-          (ISRO/SAC, 25 Aug 2026) and CMEMS <code>thetao</code> reanalysis (1–26 Aug 2026),
-          baked into <code>public/data_real.json</code> by <code>export_real_data.py</code>.</p>
+          (ISRO/SAC, 25 Aug 2026) and CMEMS <code>thetao</code> + <code>so</code> (SST &amp; SSS)
+          reanalysis (Aug 2026), baked into <code>public/data_real.json</code>.</p>
         </div>
         <div class="source-card">
           <h3>NASA Worldview / GIBS</h3>

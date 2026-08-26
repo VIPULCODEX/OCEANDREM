@@ -213,6 +213,8 @@ with tab2:
                 "depth": "Depth",
                 "rmse_model": "RMSE - Model",
                 "rmse_baseline": "RMSE - Naive baseline",
+                "correlation": "Correlation (r)",
+                "bias": "Bias (model - actual)",
             }
         ),
         width="stretch",

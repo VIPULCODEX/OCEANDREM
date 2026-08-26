@@ -1,0 +1,414 @@
+================================================================================
+SEA GREEN -- PROJECT REPORT / HANDOFF DOCUMENT
+Satellite Embedding-Based Subsurface Ocean Temperature Reconstruction
+North Indian Ocean (5N-30N, 45E-105E)
+Written: 2026-08-26, end of a ~2-hour build sprint.
+Purpose of this file: if the assistant session that wrote this runs out of
+context/limit, this document gives another AI model (or a human) everything
+needed to understand what exists, what's real vs. simulated, what's missing
+against the official problem statement, and what to do next.
+================================================================================
+
+
+1. THE ACTUAL PROBLEM STATEMENT (as given by the user, summarized faithfully)
+--------------------------------------------------------------------------------
+Build a "Satellite Embedding-Based Deep Learning Framework" that reconstructs
+depth-wise subsurface ocean temperature from daily surface satellite
+observations, at 0.25 deg spatial resolution, for the North Indian Ocean
+(5N-30N, 45E-105E).
+
+Required system components:
+  1. Preprocessing/harmonization pipeline for multi-source satellite + ocean
+     datasets.
+  2. Standardize all datasets to: 0.25 deg x 0.25 deg spatial, DAILY temporal.
+  3. Input variables (surface only):
+       - SST  (Sea Surface Temperature)
+       - SSS  (Sea Surface Salinity)
+       - SSH / SLA (Sea Surface Height / Sea Level Anomaly)
+       - Surface currents (U, V)
+       - Surface winds (U, V)
+  4. Generate COMPACT SATELLITE EMBEDDINGS using a deep-learning architecture:
+       CNN, Vision Transformer, Autoencoder, GNN, or attention-based hybrid.
+  5. Train a reconstruction model: surface state -> temperature profile.
+  6. Reconstruct temperature at standard depths (meters):
+       0, 5, 10, 20, 30, 50, 75, 100, 125, 150, 200, 300, 500, 700, 1000
+  7. Evaluate with independent observations + standard skill metrics
+     (correlation, RMSE, bias, etc.). If a dataset isn't available at the
+     required resolution, pick an open product and interpolate/regrid.
+
+Recommended datasets:
+  - Target (subsurface temperature): GLORYS Global Ocean Reanalysis
+    (https://doi.org/10.48670/moi-00021), variable = Temperature.
+  - Validation: In-situ Gridded ARGO, via INCOIS Live Access Server (LAS).
+
+Expected deliverables:
+  - End-to-end preprocessing pipeline.
+  - Satellite embedding engine (DL, latent ocean representations).
+  - DL reconstruction model for subsurface temperature.
+  - Standardized daily, 0.25 deg output.
+  - Validation framework using independent ARGO obs.
+  - Working PoC demo over the Bay of Bengal / Arabian Sea.
+
+
+2. HONEST STATUS: WHAT'S ACTUALLY BUILT VS. THE SPEC
+--------------------------------------------------------------------------------
+This was built in a ~2 hour sprint with a hard deadline, starting from an
+already-existing synthetic RandomForest demo. Priorities were: (a) get a
+working, honest, presentable end-to-end demo up, (b) integrate whatever real
+data the user could actually get their hands on in the time available,
+(c) don't fake results. Below is a component-by-component grade against the
+spec. Read this section before telling anyone the project is "done".
+
+  [PARTIAL] 1. Preprocessing/harmonization pipeline
+      - real_data.py reads real MOSDAC (.h5, INSAT-3DR SST) and real CMEMS
+        (.nc, thetao + so) files, resolves files by the variable they
+        contain (robust to browser-renamed filenames), masks fill values,
+        applies scale/offset, crops to the study region, and computes
+        daily aggregates.
+      - This is a real but MINIMAL harmonization step. It does NOT do
+        general multi-source regridding (e.g. reprojecting MOSDAC's native
+        geostationary swath grid onto the same lat/lon grid as CMEMS), and
+        there is no unified "one pipeline, N input products" abstraction --
+        each source has its own bespoke loader function.
+      - ocean_pipeline_demo.py's synthetic side has no harmonization step at
+        all since it generates already-aligned synthetic fields directly.
+
+  [NOT DONE] 2. Standardize to 0.25 deg spatial / daily temporal
+      - CMEMS real data is natively 0.083 deg, 6-hourly -- we resample to
+        DAILY (mean) for the real time series, but we never regrid the
+        0.083 deg grid up to 0.25 deg. The exported map "snapshot" grid is
+        just a strided (coarsened) view of the native grid, not a proper
+        0.25 deg regrid (no interpolation, just decimation).
+      - MOSDAC is native swath resolution (~4 km at nadir, geostationary
+        projection), also just decimated by pixel stride, not regridded to
+        a regular 0.25 deg lat/lon grid.
+      - The synthetic pipeline (ocean_pipeline_demo.py) uses GRID_STEP = 1.0
+        deg, not 0.25 deg -- this was a deliberate size/time tradeoff (a
+        0.25 deg grid over this region is ~100x240 = 24,000 points per day;
+        at 30 animation frames that's 720k+ rows, too big to bake into a
+        static JSON cheaply in the time available). If continuing this
+        project, either (a) regrid but heavily subsample only for the map
+        visualization while keeping 0.25 deg for the actual training data,
+        or (b) move the grid to a proper backend/tile-based map (e.g.
+        pre-rendered PNG heatmap tiles) instead of a scatter of raw points.
+      - ACTION ITEM: implement real regridding with e.g. `xesmf` or
+        `scipy.interpolate.griddata` / `xarray.interp` onto a proper
+        0.25 x 0.25 deg lat/lon grid for both real sources, and change
+        GRID_STEP to 0.25 in the synthetic generator too, for consistency.
+
+  [PARTIAL] 3. Input variables
+      - SST:  REAL data available and used (MOSDAC INSAT-3DR + CMEMS thetao).
+      - SSS:  REAL data available and used (CMEMS `so`, file "Sea surface
+              salinity.nc"). Wired into real_data.py / export_real_data.py /
+              the dashboard's real-data trend chart (secondary y-axis).
+      - SSH/SLA:            NOT AVAILABLE. No file was provided. The
+                             synthetic pipeline invents a plausible SSH field
+                             (smooth Gaussian "eddies") purely for the
+                             thermocline-depth physics used to generate
+                             synthetic subsurface temperatures -- it is NOT
+                             real altimetry data.
+      - Surface currents U,V:  NOT AVAILABLE at all, real or synthetic.
+      - Surface winds U,V:      Only SYNTHETIC (a simple sinusoidal wind-speed
+                             field in ocean_pipeline_demo.py). No real wind
+                             product (e.g. ASCAT/OSCAT/ERA5) was integrated.
+      - ACTION ITEM: pull real SSH/SLA (CMEMS `zos` or an altimetry product
+        like SSALTO/DUACS) and real winds (ASCAT/OSCAT via MOSDAC, or ERA5)
+        for the same region/window if continuing. The `_find_cmems_dataset`
+        pattern in real_data.py generalizes trivially to any additional
+        CMEMS variable (zos, uo/vo, etc.) if more .nc extracts are added --
+        just call `load_cmems_series("zos")` etc. (may need a small tweak
+        since that helper assumes a `depth` dimension; current/wind products
+        may not have one).
+
+  [NOT DONE] 4. Compact satellite embeddings via DL (CNN/ViT/Autoencoder/GNN/
+      attention)
+      - THIS IS THE BIGGEST GAP. Nothing in this repo does representation
+        learning or produces an embedding. The reconstruction model is a
+        plain scikit-learn RandomForestRegressor taking raw tabular features
+        (lat, lon, day, sst, ssh, sss, wind, one-hot cluster id) directly to
+        depth-wise temperature -- no CNN/ViT/autoencoder/GNN, no latent
+        embedding vector, nothing resembling "satellite embeddings".
+      - The one nod to the recommended literature (Loo et al. 2026,
+        arXiv:2605.00860, "Adaptive Spatiotemporal Clustering...") is a
+        KMeans clustering step over (lat, lon, day, ssh) whose cluster id is
+        fed into the RandomForest as a one-hot feature. This is a legitimate
+        but very lightweight nod to the paper's idea, NOT an implementation
+        of a deep embedding framework of any kind.
+      - ACTION ITEM (highest priority for spec compliance): replace/augment
+        the RandomForest with an actual DL model. Given the data actually on
+        hand (gridded surface fields), a small CNN or convolutional
+        autoencoder is the most tractable next step:
+          (a) Stack available surface channels (SST, SSS, [SSH, winds,
+              currents once available]) into a multi-channel image per day
+              over the 0.25 deg grid.
+          (b) Train a convolutional encoder (or a small autoencoder) to
+              compress each day's multi-channel surface image into a
+              compact latent vector per grid cell (or per patch) --
+              this is the "satellite embedding".
+          (c) Feed that embedding (instead of raw surface features) into a
+              regression head (small MLP, or keep RandomForest as a
+              baseline to compare against) that predicts the 15-level
+              temperature profile.
+          (d) Report both the embedding-based model's skill AND the
+              RandomForest baseline's skill, so the value of the embedding
+              step is demonstrated quantitatively (this satisfies the
+              "evaluate... standard skill metrics" requirement AND makes
+              the embedding step's contribution legible to judges).
+        Framework suggestion given time constraints: PyTorch or a small
+        Keras/TensorFlow model; either is fine, pick whichever the next
+        session/dev is fastest in. Keep it SMALL (a few conv layers) --
+        the point is to demonstrably satisfy the spec's architecture
+        requirement, not to win a benchmark.
+
+  [DONE, SYNTHETIC ONLY] 5. Train reconstruction model (surface -> profile)
+      - RandomForestRegressor, multi-output (one model, 15 depth targets),
+        trained on a time-ordered 75/25 split (no leakage), evaluated
+        against a naive climatology baseline. This part works and is
+        genuinely a valid ML training/eval loop -- it's just running on the
+        synthetic dataset, and it's the wrong architecture class per the
+        spec (see item 4).
+
+  [DONE] 6. Standard depth levels
+      - FIXED in this session: DEPTH_LEVELS in ocean_pipeline_demo.py now
+        exactly matches the spec's list:
+          [0, 5, 10, 20, 30, 50, 75, 100, 125, 150, 200, 300, 500, 700, 1000]
+        (it was previously [50, 100, 200, 500], an arbitrary earlier choice).
+        This propagates automatically through export_data.py -> data.json
+        -> the dashboard (nothing else hardcodes the depth list). Re-run
+        `python export_data.py` after this file if you change it again.
+      - Caveat: these are still SYNTHETIC profiles (a physically-motivated
+        but made-up thermocline curve), not GLORYS or real Argo temperature.
+
+  [NOT DONE] Target dataset: GLORYS reanalysis / Gridded ARGO (INCOIS LAS)
+      - Neither was integrated. The CMEMS files we have (thetao, so) are
+        from `GLOBAL_ANALYSISFORECAST_PHY_001_024` (Mercator's real-time
+        analysis/forecast system), which is a *sibling* product to GLORYS
+        (GLORYS is the *reanalysis*, `GLOBAL_MULTIYEAR_PHY_001_030`) from
+        the same CMEMS catalog/toolbox -- same access method, different
+        `productId`/`datasetId` string. Also, critically, the files we have
+        only carry ONE depth level (~0.49 m, i.e. essentially surface) --
+        not a depth profile. To get an actual GLORYS temperature *profile*
+        target, redo the CMEMS pull requesting `thetao` from
+        `GLOBAL_MULTIYEAR_PHY_001_030` (or the analysis-forecast dataset)
+        with a depth range covering the 15 standard levels, not just the
+        surface. That single change (broaden the `depth` selection in the
+        Copernicus Marine Toolbox request) would deliver real subsurface
+        temperature targets and close most of the biggest remaining gap.
+      - Gridded ARGO via INCOIS LAS was not attempted (no credentials/access
+        set up; INCOIS LAS is typically a public THREDDS/OPeNDAP or web
+        download, worth checking if it needs an account).
+      - A raw (non-gridded) ARGO pull was attempted via `argopy` in this
+        session: `pip install argopy` FAILED to build because one of its
+        dependencies (`aiohttp`) has no prebuilt wheel for this machine's
+        Python (3.14, very new -- aiohttp's C extension needs a compiler
+        toolchain that isn't set up, or a matching wheel isn't published
+        yet for 3.14). Fix options for next session: (a) use an older
+        Python (3.11/3.12) via a separate venv just for the data-prep step,
+        where `argopy` has prebuilt wheels, then export a CSV/Parquet for
+        the main pipeline to consume; or (b) install build tools
+        (`build-essential` / a C compiler) and retry; or (c) skip argopy
+        entirely and hit the Argo GDAC's THREDDS/ERDDAP HTTP API directly
+        with `requests` + manual NetCDF parsing (more code, no fragile
+        dependency).
+
+  [DONE, LIMITED] 7. Evaluation / skill metrics
+      - RMSE per depth, model vs. climatology baseline: implemented and
+        shown in both UIs (Streamlit + static dashboard). Correlation and
+        bias (also requested in the spec) are NOT currently computed --
+        cheap to add (a few lines in train_and_evaluate() in
+        ocean_pipeline_demo.py: add `corr = np.corrcoef(...)`,
+        `bias = (preds - actual).mean()` per depth column).
+      - No evaluation against INDEPENDENT observations (real Argo/GLORYS)
+        exists, since none of those are integrated yet -- current
+        "evaluation" is only synthetic-vs-synthetic (still methodologically
+        correct as a held-out time-based test split, just not against real
+        independent obs as the spec asks for).
+
+  [DONE] PoC demo over the region
+      - Two working UIs exist and were smoke-tested this session:
+          1. Streamlit app (app.py) -- full interactive app, Sea Green
+             themed, includes a Marine Heatwave tab.
+          2. A static dashboard (public/) -- Vercel-deployable, zero
+             server, live-simulated playback through the synthetic 90-day
+             window, PLUS a real-data section (MOSDAC + CMEMS SST/SSS,
+             genuinely live/current as of Aug 2026).
+      - Both are demonstrably running (verified: HTTP 200s, no console/
+        Python errors in this session's smoke tests) but this has NOT been
+        visually reviewed in an actual browser by a human or a
+        vision-capable check -- do that before presenting.
+
+
+3. WHAT IS REAL VS. SIMULATED -- QUICK REFERENCE (read this before saying
+   anything is "real" to a judge/reviewer)
+--------------------------------------------------------------------------------
+  REAL:
+    - MOSDAC INSAT-3DR L2B SST, 25 Aug 2026, half-hourly (ISRO/SAC).
+      -> public/data_real.json : mosdac_frames[]
+    - CMEMS thetao (SST, ~0.49m), GLOBAL_ANALYSISFORECAST_PHY_001_024,
+      1-26 Aug 2026, 6-hourly, resampled to daily mean.
+      -> public/data_real.json : cmems{}
+    - CMEMS so (SSS, ~0.49m), same product family, 1-27 Aug 2026.
+      -> public/data_real.json : cmems_sss{}
+    - The finding itself is real: this region's basin-mean SST/SSS in the
+      pulled window is essentially flat (no anomaly/heatwave in this
+      particular slice of real data) -- this is reported HONESTLY as a
+      "quiet" live monitor, not papered over.
+
+  SIMULATED (physically-motivated, not measured):
+    - Everything in ocean_pipeline_demo.py: Argo-like point profiles, the
+      SST/SSH/SSS/wind surface grid, the injected marine-heatwave pulse
+      (added deliberately this session so the detector has an event to
+      catch), the RandomForest model, its RMSE metrics, the vertical
+      profiles, the predicted-vs-actual scatter, the spatiotemporal
+      clusters.
+      -> public/data.json (via export_data.py)
+    - This is clearly labelled in the dashboard's disclaimer banner and in
+      panel titles ("Pipeline Validation -- Simulated Monsoon-Season
+      Scenario", "Heatwave Stress-Test (Simulated Event)"). DO NOT remove
+      or soften that labelling -- it's the difference between an honest PoC
+      and a misleading one.
+
+
+4. FILE INVENTORY
+--------------------------------------------------------------------------------
+  ocean_pipeline_demo.py   Synthetic data layer + heatwave detection +
+                            spatiotemporal clustering + RandomForest
+                            train/eval. Single source of truth for the
+                            "simulated" track. DEPTH_LEVELS now matches spec.
+  export_data.py           Bakes ocean_pipeline_demo.py output into
+                            public/data.json (30 animation frames, 55 test
+                            profiles, metrics, heatwave series).
+  real_data.py             Loaders for real MOSDAC (.h5) and CMEMS (.nc)
+                            files. `_find_cmems_dataset(varname)` resolves
+                            files by variable name (robust to renames).
+                            `load_cmems_series(varname)` generalizes over
+                            thetao/so. `load_mosdac_series()` reads +crops+
+                            subsamples INSAT-3DR SST passes.
+  export_real_data.py      Bakes real_data.py output into
+                            public/data_real.json (~1 MB).
+  app.py                   Streamlit UI (full interactive app), Sea Green
+                            themed, tabs: Marine Heatwave / Overview / Model
+                            Performance / Explore Predictions / Pred vs
+                            Actual. Reads only from ocean_pipeline_demo.py
+                            (does NOT currently show the real MOSDAC/CMEMS
+                            data -- that's only in the static dashboard).
+                            ACTION ITEM if continuing: add a matching "Live
+                            Data" tab here too, reusing real_data.py.
+  public/index.html         Static dashboard markup. Sea Green dark theme.
+  public/style.css          Styling + responsive breakpoints (980/640/400px)
+                            + touch-target sizing for coarse pointers.
+  public/app.js             All dashboard interactivity: fetches
+                            data.json + data_real.json, animates both
+                            (separate play/pause/timers), builds all Plotly
+                            charts.
+  public/data.json          Baked synthetic bundle (~727 KB). Regenerate
+                            with `python export_data.py`.
+  public/data_real.json     Baked real bundle (~1 MB). Regenerate with
+                            `python export_real_data.py`.
+  vercel.json               `{"outputDirectory": "public", "cleanUrls":
+                            true}` -- zero-config static deploy.
+  .streamlit/config.toml    Sea Green theme for Streamlit (HF Spaces path).
+  requirements.txt          Runtime deps (streamlit/plotly/pandas/numpy/
+                            sklearn/matplotlib) + a commented section for
+                            argopy/copernicusmarine (subsurface real-data
+                            hooks) + h5py/xarray/netCDF4 (needed only to run
+                            export_real_data.py).
+  README.md                 Setup + deploy instructions for both the static
+                            dashboard (Vercel) and Streamlit app (HF Spaces
+                            fallback), plus the real-data section.
+  .gitignore                Excludes .venv, __pycache__, .vercel, MOSDAC/,
+                            and *.nc (raw data files, 100s of MB each --
+                            NEVER remove these from gitignore and commit the
+                            raw files; only the derived JSON is meant to be
+                            version-controlled).
+  MOSDAC/                   Raw INSAT-3DR .h5 files (gitignored, ~380 MB
+                            total). 24 half-hourly files, 25 Aug 2026.
+  Sea Surface temp.nc       Raw CMEMS thetao extract (gitignored, ~315 MB).
+                            NOTE: byte-identical to
+                            cmems_mod_glo_phy-thetao_anfc_..._....nc (an
+                            earlier download of the exact same product/
+                            window) -- these are duplicates, safe to keep
+                            just one if disk space matters.
+  Sea surface salinity.nc   Raw CMEMS `so` extract (gitignored, ~324 MB).
+  cmems_mod_glo_phy-thetao_
+    anfc_0.083deg_PT6H-i_....nc   Duplicate of "Sea Surface temp.nc" (see
+                            above). Both resolve to the same data via
+                            real_data.py's variable-based file lookup.
+  web/                      Empty directory, unclear origin/purpose, not
+                            referenced by any code. Left untouched.
+  synthetic_argo_dataset.csv, ocean_pipeline_demo.png
+                            Artifacts from an earlier (pre-this-session)
+                            version of the demo. Not read by any current
+                            code path; harmless to keep or remove.
+
+
+5. HOW TO RUN / DEPLOY (unchanged from README, repeated here for convenience)
+--------------------------------------------------------------------------------
+  Static dashboard (Vercel):
+    python -m venv .venv && source .venv/bin/activate
+    pip install -r requirements.txt
+    python export_data.py         # regenerate public/data.json (synthetic)
+    python export_real_data.py    # regenerate public/data_real.json (real)
+    # push to GitHub, import repo in Vercel -- vercel.json handles the rest.
+
+  Streamlit app (Hugging Face Spaces or local):
+    streamlit run app.py
+
+  Both read ocean_pipeline_demo.py as their synthetic source of truth; only
+  the static dashboard currently also shows the real MOSDAC/CMEMS data.
+
+
+6. PRIORITIZED NEXT STEPS (if more time becomes available)
+--------------------------------------------------------------------------------
+  P0 (spec-critical, biggest gaps):
+    1. Add an actual DL embedding model (small CNN/autoencoder) -- see
+       section 2, item 4, for a concrete implementation sketch.
+    2. Get a REAL subsurface temperature target: redo the CMEMS pull with a
+       full depth range (not just ~0.49 m) from either the analysis-forecast
+       or GLORYS reanalysis dataset. This single fix upgrades the entire
+       ML task from "trained on synthetic subsurface targets" to "trained
+       on real GLORYS/CMEMS depth profiles" -- probably the highest
+       leverage single action available.
+    3. Real regridding to 0.25 deg x 0.25 deg (currently only decimation/
+       striding for visualization, and the synthetic grid uses 1.0 deg).
+
+  P1 (rounds out the spec):
+    4. Pull real SSH/SLA (CMEMS `zos`) and real winds (ASCAT/OSCAT or ERA5)
+       -- both needed as input variables per the spec.
+    5. Add correlation and bias metrics alongside RMSE.
+    6. Fix the argopy install (see section 2, item "Target dataset") to get
+       real independent Argo profiles for validation, or use INCOIS LAS
+       gridded Argo as specified.
+    7. Bring the Streamlit app's "Live Data" story up to parity with the
+       static dashboard (it currently only shows the synthetic track).
+
+  P2 (polish):
+    8. Replace the raw scatter-point map with a proper regridded raster/
+       heatmap (once real 0.25 deg data exists, a scatter of ~24,000 points
+       per frame is the wrong visualization -- use an image/heatmap trace).
+    9. Visually QA the dashboard in an actual browser (this session could
+       only verify via HTTP status codes and JS syntax checks, not a real
+       render).
+    10. Consider a lightweight backend if the DL model becomes too large to
+        bake into a static JSON (at that point, re-evaluate Vercel serverless
+        functions vs. Hugging Face Spaces for hosting the model itself).
+
+
+7. KNOWN RISKS / THINGS TO DOUBLE-CHECK
+--------------------------------------------------------------------------------
+  - NEVER commit the raw .nc/.h5 files to git -- they are large (300+ MB
+    each) and .gitignore is relied upon to keep them out. Run `git status`
+    and confirm no .nc/.h5 files show as staged before any commit.
+  - The NASA Worldview iframe embed (public/index.html) may be blocked by
+    NASA's X-Frame-Options/CSP when actually viewed -- there's a fallback
+    "open in new tab" link, but this hasn't been confirmed to render
+    correctly in a real browser from this sandboxed session.
+  - "Sea Surface temp.nc" and the earlier "cmems_mod_glo_phy-thetao_..."
+    file are duplicates (confirmed byte-identical). Real_data.py's
+    variable-based lookup handles this fine (picks whichever sorts first),
+    but if disk space is tight, either can be deleted.
+  - Team name: Sea Green. Region: North Indian Ocean, 5N-30N, 45E-105E
+    (Arabian Sea + Bay of Bengal). Keep all copy consistent with this.
+================================================================================
+END OF REPORT
+================================================================================

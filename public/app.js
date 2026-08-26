@@ -67,16 +67,28 @@ async function bootReal() {
   chip.textContent = c.today_category;
   chip.className = `chip ${c.today_category}`;
 
-  Plotly.newPlot(
-    "realTrendChart",
-    [{
-      x: c.series.map((d) => d.date), y: c.series.map((d) => d.sst),
-      mode: "lines+markers", line: { color: "#3fcf8e", width: 2 }, marker: { size: 5 },
-      name: "Daily mean SST",
-    }],
-    { ...PLOTLY_DARK, xaxis: { title: "Date", gridcolor: "#1c4a41" }, yaxis: { title: "SST (°C)", gridcolor: "#1c4a41" } },
-    { displayModeBar: false, responsive: true }
-  );
+  const sss = REAL.cmems_sss;
+  const sstTrace = {
+    x: c.series.map((d) => d.date), y: c.series.map((d) => d.sst),
+    mode: "lines+markers", line: { color: "#3fcf8e", width: 2 }, marker: { size: 5 },
+    name: "SST (°C)",
+  };
+  const traces = [sstTrace];
+  const layout = {
+    ...PLOTLY_DARK,
+    xaxis: { title: "Date", gridcolor: "#1c4a41" },
+    yaxis: { title: "SST (°C)", gridcolor: "#1c4a41", titlefont: { color: "#3fcf8e" } },
+    legend: { orientation: "h", y: -0.25 },
+  };
+  if (sss) {
+    traces.push({
+      x: sss.series.map((d) => d.date), y: sss.series.map((d) => d.sss),
+      mode: "lines+markers", line: { color: "#4fa3e3", width: 2, dash: "dot" }, marker: { size: 5 },
+      name: "SSS (PSU)", yaxis: "y2",
+    });
+    layout.yaxis2 = { title: "SSS (PSU)", overlaying: "y", side: "right", showgrid: false, titlefont: { color: "#4fa3e3" } };
+  }
+  Plotly.newPlot("realTrendChart", traces, layout, { displayModeBar: false, responsive: true });
 
   renderRealFrame(0);
   document.getElementById("realPlayBtn").addEventListener("click", toggleRealPlay);
@@ -197,8 +209,23 @@ function drawStatic() {
     { displayModeBar: false, responsive: true }
   );
 
+  drawMetricsTable();
   drawScatter();
   drawProfile();
+}
+
+function drawMetricsTable() {
+  const rows = DATA.metrics.map((m) => `
+    <tr>
+      <td>${m.depth} m</td>
+      <td>${m.rmse_model.toFixed(3)}</td>
+      <td>${m.rmse_baseline.toFixed(3)}</td>
+      <td>${m.correlation.toFixed(3)}</td>
+      <td>${m.bias >= 0 ? "+" : ""}${m.bias.toFixed(3)}</td>
+    </tr>`).join("");
+  document.getElementById("metricsTable").innerHTML = `
+    <thead><tr><th>Depth</th><th>RMSE (model)</th><th>RMSE (baseline)</th><th>Correlation (r)</th><th>Bias</th></tr></thead>
+    <tbody>${rows}</tbody>`;
 }
 
 function drawScatter() {

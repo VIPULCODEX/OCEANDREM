@@ -14,17 +14,22 @@ from real_data import load_cmems_series, load_mosdac_series
 
 def main():
     print("Loading real CMEMS basin SST series + current snapshot...")
-    cmems = load_cmems_series()
+    cmems_sst = load_cmems_series("thetao")
+
+    print("Loading real CMEMS basin SSS series + current snapshot...")
+    cmems_sss = load_cmems_series("so")
 
     print("Loading real MOSDAC (INSAT-3DR) satellite passes...")
     mosdac_frames = load_mosdac_series()
 
     bundle = {
         "source": {
-            "cmems": "CMEMS GLOBAL_ANALYSISFORECAST_PHY_001_024 (thetao, ~0.49m), Mercator Ocean",
+            "cmems_sst": f"CMEMS GLOBAL_ANALYSISFORECAST_PHY_001_024 (thetao, ~0.49m), {cmems_sst['source_file']}",
+            "cmems_sss": f"CMEMS GLOBAL_ANALYSISFORECAST_PHY_001_024 (so, ~0.49m), {cmems_sss['source_file']}",
             "mosdac": "INSAT-3DR L2B SST V02R00, ISRO/SAC, 25 Aug 2026",
         },
-        "cmems": cmems,
+        "cmems": cmems_sst,
+        "cmems_sss": cmems_sss,
         "mosdac_frames": mosdac_frames,
     }
 

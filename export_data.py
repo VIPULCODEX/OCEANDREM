@@ -76,6 +76,8 @@ def main():
             "depth": int(row["depth"].replace("temp_", "").replace("m", "")),
             "rmse_model": round(float(row["rmse_model"]), 4),
             "rmse_baseline": round(float(row["rmse_baseline"]), 4),
+            "correlation": round(float(row["correlation"]), 4),
+            "bias": round(float(row["bias"]), 4),
         }
         for _, row in metrics.iterrows()
     ]
