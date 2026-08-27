@@ -176,6 +176,20 @@ button.ctrl:hover { border-color: var(--sea-bright); }
 .tab-btn:hover { color: var(--text); }
 .tab-btn.active { color: var(--sea-bright); }
 
+.tab-tag {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 999px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.tab-tag.real { background: rgba(63, 207, 142, 0.18); color: var(--sea-bright); }
+.tab-tag.sim { background: rgba(79, 163, 227, 0.18); color: #4fa3e3; }
+
 /* Sliding underline for the desktop tab strip -- same sliding-glass idea
    as the mobile liquid pill, just flattened into an underline. Positioned
    by positionTabUnderline() in app.js. */
@@ -386,7 +400,48 @@ button.ctrl:hover { border-color: var(--sea-bright); }
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
 }
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Unmissable real-vs-simulated marker on every data panel -- not just a
+   banner you can skim past. Green = genuinely live/measured, blue =
+   physics-based simulation. Reused as a border tint too (below) so the
+   signal reads even at a glance, before anyone reads the label text. */
+.data-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.data-badge.real {
+  background: rgba(63, 207, 142, 0.16);
+  color: var(--sea-bright);
+  border: 1px solid rgba(63, 207, 142, 0.45);
+}
+.data-badge.sim {
+  background: rgba(79, 163, 227, 0.16);
+  color: #4fa3e3;
+  border: 1px solid rgba(79, 163, 227, 0.45);
+}
+
+/* Progressive enhancement: browsers without :has() just skip the tint --
+   the badge text/color still carries the signal on its own. */
+.panel:has(.data-badge.real) { border-left: 3px solid var(--sea-bright); }
+.panel:has(.data-badge.sim) { border-left: 3px solid #4fa3e3; }
 
 .panel .desc {
   font-size: 12.5px;
