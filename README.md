@@ -2,15 +2,37 @@
 
 **Subsurface ocean temperature reconstruction & marine heatwave monitoring for the North Indian Ocean (5–30°N, 45–105°E)**, built from sparse Argo float profiles + dense surface satellite fields.
 
-Argo floats measure subsurface temperature directly but are sparse in space and time. Satellites see the surface (SST, SSH, salinity, wind) continuously and everywhere. This pipeline learns the surface → subsurface relationship with a Random Forest, so subsurface structure can be estimated anywhere in the basin — and tracks basin-wide SST anomaly against climatology to flag marine heatwave events (Hobday-style categories: Watch / Warning / Severe / Extreme).
+Argo floats measure subsurface temperature directly but are sparse in space and time. Satellites see the surface (SST, SSH, salinity, wind) continuously and everywhere. This pipeline trains a neural network (FFNN) to learn the surface → subsurface relationship, so subsurface structure can be estimated anywhere in the basin — and tracks basin-wide SST anomaly against climatology to flag marine heatwave events (Hobday-style categories: Watch / Warning / Severe / Extreme).
 
-> ℹ **Mixed real + simulated.** The dashboard's **Live Data** section runs on real
-> **MOSDAC (INSAT-3DR) satellite SST** and real **CMEMS `thetao` reanalysis** data
-> (current as of 25–26 Aug 2026) — see [Real data](#real-data-mosdac--cmems) below.
-> The **Pipeline Validation** section (Argo floats, subsurface reconstruction, RMSE)
-> still runs on a physically-motivated simulation with an injected heatwave event,
-> since a real multi-depth Argo/subsurface pull wasn't available for this build.
-> Real-data hooks for that half are already wired in `ocean_pipeline_demo.py`.
+The dashboard (`public/`) is organized as four tabs: **Live Monitor** (real current data), **The Model** (the reconstruction demo), **Results** (metrics/claims), **How it Works** (methodology, for anyone who wants the detail — kept out of the way of the main flow).
+
+> ℹ **Mixed real + simulated.** The **Live Monitor** tab runs on real
+> **MOSDAC (INSAT-3DR) satellite SST** and real **CMEMS** SST/SSS/currents/chlorophyll
+> (current as of Aug 2026) — see [Real data](#real-data-mosdac--cmems) below.
+> **The Model** and **Results** tabs (Argo floats, subsurface reconstruction, RMSE)
+> run on a physically-motivated simulation with an injected heatwave event, since a
+> real multi-depth Argo/subsurface pull wasn't available for this build. Real-data
+> hooks for that half are already wired in `ocean_pipeline_demo.py`.
+
+## The model
+
+`dl_pipeline.py` trains a small feedforward neural network (FFNN, PyTorch) on the
+synthetic Argo dataset and is the model actually shown in the dashboard — it beat
+the original Random Forest baseline once the synthetic profile count was raised
+from 220 to 600 (not enough data was the reason the FFNN initially lost). Both are
+trained on the *identical* time-based train/test split (`time_based_split()` in
+`ocean_pipeline_demo.py`) for a fair comparison; all three (naive baseline,
+Random Forest, FFNN) are shown side by side in the dashboard's Results tab.
+
+We also tried to replicate the *actual* headline method from Loo et al. 2026
+(arXiv:2605.00860) — cluster by depth-band and time-phase, then train a separate
+small network per cluster, instead of one pooled network. On our synthetic data
+this made results *worse*, not better (see `dl_pipeline.py`'s module docstring and
+`PROJECT_REPORT.txt` for the full writeup and why: too little data per cluster,
+and our synthetic generator uses one smooth formula for the whole depth profile,
+so there's no genuine per-depth heterogeneity for the clustering to exploit). This
+is reported honestly rather than hidden — it's a real, useful finding about when
+that method pays off, not a bug we're pretending isn't there.
 
 ## Two ways to run this
 
@@ -95,11 +117,12 @@ Flip the flag, fill in the two commented API calls, re-run `export_data.py` (or 
 ## Repo layout
 
 ```
-ocean_pipeline_demo.py   # simulated data layer, heatwave detection, clustering, model, training/eval
-export_data.py           # bakes simulated pipeline output into public/data.json
+ocean_pipeline_demo.py   # simulated data layer, heatwave detection, clustering, RF baseline, training/eval
+dl_pipeline.py           # the FFNN model (headline), + the depth/time clustering experiment
+export_data.py           # bakes simulated pipeline output (RF + FFNN) into public/data.json
 real_data.py             # loaders for real MOSDAC (.h5) + CMEMS (.nc) files
 export_real_data.py      # bakes real data into public/data_real.json
-streamlit_app.py                   # Streamlit UI (full interactive app)
+streamlit_app.py         # Streamlit UI (full interactive app) -- NOTE: still RF-only, not yet updated to the FFNN
 public/                  # static dashboard (index.html / style.css / app.js / data*.json) — deploy target for Vercel
 vercel.json              # points Vercel at public/
 .streamlit/config.toml   # Sea Green theme for the Streamlit app

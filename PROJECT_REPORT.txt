@@ -136,14 +136,44 @@ spec. Read this section before telling anyone the project is "done".
         ready-made template for a load_cmems_winds_series() once a wind
         u/v file is available.
 
-  [NOT DONE] 4. Compact satellite embeddings via DL (CNN/ViT/Autoencoder/GNN/
-      attention)
-      - THIS IS THE BIGGEST GAP. Nothing in this repo does representation
-        learning or produces an embedding. The reconstruction model is a
-        plain scikit-learn RandomForestRegressor taking raw tabular features
-        (lat, lon, day, sst, ssh, sss, wind, one-hot cluster id) directly to
-        depth-wise temperature -- no CNN/ViT/autoencoder/GNN, no latent
-        embedding vector, nothing resembling "satellite embeddings".
+  [PARTIAL, updated 2026-08-27] 4. Compact satellite embeddings via DL
+      (CNN/ViT/Autoencoder/GNN/attention)
+      - A real neural network now exists and is what the dashboard actually
+        shows: dl_pipeline.py trains a small FFNN (PyTorch) on the surface
+        features -> 15-depth temperature profile. It legitimately beats the
+        Random Forest (0.327 vs 0.334 mean RMSE, 0.846 vs 0.836 mean
+        correlation) once N_ARGO_PROFILES was raised from 220 to 600 --
+        at 220, the FFNN lost to RF (small-N tabular regression is exactly
+        where tree ensembles usually beat neural nets; this was verified
+        empirically, not assumed).
+      - We also attempted a faithful, scaled-down replication of the
+        paper's ACTUAL headline method (not just the KMeans nod described
+        below): cluster by depth-band (contiguity-constrained hierarchical
+        clustering on the mean profile, 3 bands) and by time-phase (quiet
+        vs. heatwave-event, derived from our own heatwave detector instead
+        of the paper's PCA+changepoint, since `ruptures` failed to build --
+        no C compiler in this environment), then train one small FFNN per
+        (band x phase) sub-block instead of one pooled network. Result: this
+        made things WORSE on our data (-13% to -23% RMSE depending on N),
+        not better, contradicting the paper's own finding (+12-27%
+        improvement). Root cause, confirmed by testing at two different N:
+        our synthetic generator produces the entire depth profile from ONE
+        smooth formula, so there is no genuine per-depth heterogeneity for
+        the clustering to exploit -- splitting the data only shrinks each
+        sub-model's training set with nothing to gain in return. This is a
+        real, honestly-reported finding (see dl_pipeline.py docstring and
+        README "The model" section), not something papered over: the
+        paper's method needs either much more data or genuinely
+        heterogeneous depth dynamics (i.e. real ocean data) to pay off.
+      - Still not done: no CNN/ViT/GNN/attention architecture, and no true
+        "embedding" (compact latent vector) -- the FFNN takes raw tabular
+        features directly to output, same input shape as the RF. It is a
+        real, trained, tested neural network, which is a meaningful step up
+        from "nothing," but it is not yet what "satellite embeddings"
+        specifically implies. THIS REMAINS THE BIGGEST REMAINING GAP versus
+        the spec, just less total than before this update.
+      - Old text below (context for the "why RandomForest" starting point
+        this session began from) kept for history:
       - The one nod to the recommended literature (Loo et al. 2026,
         arXiv:2605.00860, "Adaptive Spatiotemporal Clustering...") is a
         KMeans clustering step over (lat, lon, day, ssh) whose cluster id is
@@ -243,15 +273,26 @@ spec. Read this section before telling anyone the project is "done".
   [DONE] PoC demo over the region
       - Two working UIs exist and were smoke-tested this session:
           1. Streamlit app (streamlit_app.py) -- full interactive app, Sea Green
-             themed, includes a Marine Heatwave tab.
+             themed, includes a Marine Heatwave tab. Still shows the
+             Random Forest only, NOT updated to the FFNN (2026-08-27) --
+             the two UIs are now out of sync on which model they show.
           2. A static dashboard (public/) -- Vercel-deployable, zero
-             server, live-simulated playback through the synthetic 90-day
-             window, PLUS a real-data section (MOSDAC + CMEMS SST/SSS,
-             genuinely live/current as of Aug 2026).
+             server. Restructured 2026-08-27 into 4 tabs (Live Monitor /
+             The Model / Results / How it Works), replacing the earlier
+             single long-scroll layout, with copy rewritten to be much
+             shorter and plain-language throughout (hackathon feedback:
+             too much text, unclear where "the solution" actually was).
+             A persistent claim banner up top states the headline metric
+             (RMSE improvement %, correlation, vs.-RF %) computed live
+             from data.json's meta block.
       - Both are demonstrably running (verified: HTTP 200s, no console/
-        Python errors in this session's smoke tests) but this has NOT been
-        visually reviewed in an actual browser by a human or a
-        vision-capable check -- do that before presenting.
+        Python errors, all HTML element IDs referenced by app.js cross-
+        checked to exist) but this has NOT been visually reviewed in an
+        actual browser by a human or a vision-capable check -- do that
+        before presenting, especially the new tab-switching behavior and
+        the Plotly charts inside initially-hidden tabs (handled via a
+        window resize-event dispatch on tab switch -- see setupTabs() in
+        app.js -- but not visually confirmed).
 
 
 3. WHAT IS REAL VS. SIMULATED -- QUICK REFERENCE (read this before saying
