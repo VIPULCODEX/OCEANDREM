@@ -76,16 +76,21 @@ function setupTabs() {
   window.addEventListener("resize", positionLiquidIndicator);
 }
 
-function positionLiquidIndicator() {
-  const nav = document.getElementById("bottomNav");
-  const indicator = document.getElementById("liquidIndicator");
+function positionIndicator(navId, indicatorId, btnSelector) {
+  const nav = document.getElementById(navId);
+  const indicator = document.getElementById(indicatorId);
   if (!nav || !indicator) return;
-  const active = nav.querySelector(".bottom-tab-btn.active");
+  const active = nav.querySelector(btnSelector);
   if (!active) return;
   // Position relative to the nav's own padding box, so this works whether
-  // the nav is visible or not (mobile-only; harmless to compute either way).
+  // the nav is visible or not (harmless to compute even when hidden).
   indicator.style.left = `${active.offsetLeft}px`;
   indicator.style.width = `${active.offsetWidth}px`;
+}
+
+function positionLiquidIndicator() {
+  positionIndicator("bottomNav", "liquidIndicator", ".bottom-tab-btn.active");
+  positionIndicator("tabNav", "tabUnderline", ".tab-btn.active");
 }
 
 function drawClaimBanner() {
@@ -278,6 +283,8 @@ function drawStatic() {
     { key: "rmse_baseline", name: "Naive guess", color: "#5c7d76", dash: "dot" },
     { key: "rmse_rf", name: "Random Forest", color: "#9a7fd1", dash: "dash" },
     { key: "rmse_cnn", name: "CNN", color: "#e58a3a", dash: "dash" },
+    { key: "rmse_vit", name: "ViT", color: "#4fa3e3", dash: "dash" },
+    { key: "rmse_autoencoder", name: "Autoencoder", color: "#c463d9", dash: "dash" },
     { key: "rmse_lstm", name: "LSTM", color: "#e2543f", dash: "dash" },
     { key: "rmse_model", name: DATA.meta.model_name || "FFNN", color: "#3fcf8e", dash: "solid" },
   ];
@@ -351,13 +358,15 @@ function drawMetricsTable() {
       <td>${m.rmse_baseline.toFixed(3)}</td>
       <td>${m.rmse_rf.toFixed(3)}</td>
       <td>${m.rmse_cnn.toFixed(3)}</td>
+      <td>${m.rmse_vit.toFixed(3)}</td>
+      <td>${m.rmse_autoencoder.toFixed(3)}</td>
       <td>${m.rmse_lstm.toFixed(3)}</td>
       <td><b>${m.rmse_model.toFixed(3)}</b></td>
       <td>${m.correlation.toFixed(3)}</td>
       <td>${m.bias >= 0 ? "+" : ""}${m.bias.toFixed(3)}</td>
     </tr>`).join("");
   document.getElementById("metricsTable").innerHTML = `
-    <thead><tr><th>Depth</th><th>Naive guess</th><th>${baselineName}</th><th>CNN</th><th>LSTM</th><th>${modelName}</th><th>Correlation</th><th>Bias</th></tr></thead>
+    <thead><tr><th>Depth</th><th>Naive guess</th><th>${baselineName}</th><th>CNN</th><th>ViT</th><th>Autoencoder</th><th>LSTM</th><th>${modelName}</th><th>Correlation</th><th>Bias</th></tr></thead>
     <tbody>${rows}</tbody>`;
 }
 

@@ -144,6 +144,7 @@ button.ctrl:hover { border-color: var(--sea-bright); }
 
 /* ---------- Tabs ---------- */
 .tabs {
+  position: relative;
   display: flex;
   gap: 6px;
   margin-bottom: 18px;
@@ -151,9 +152,9 @@ button.ctrl:hover { border-color: var(--sea-bright); }
   overflow-x: auto;
 }
 .tab-btn {
+  position: relative;
   background: transparent;
   border: none;
-  border-bottom: 2px solid transparent;
   color: var(--text-dim);
   padding: 10px 14px;
   font-size: 13.5px;
@@ -162,7 +163,24 @@ button.ctrl:hover { border-color: var(--sea-bright); }
   white-space: nowrap;
 }
 .tab-btn:hover { color: var(--text); }
-.tab-btn.active { color: var(--sea-bright); border-bottom-color: var(--sea-bright); }
+.tab-btn.active { color: var(--sea-bright); }
+
+/* Sliding underline for the desktop tab strip -- same sliding-glass idea
+   as the mobile liquid pill, just flattened into an underline. Positioned
+   by positionTabUnderline() in app.js. */
+.tab-underline {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--sea-bright);
+  box-shadow: 0 0 8px rgba(63, 207, 142, 0.7);
+  border-radius: 2px;
+  transition: left 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+              width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+}
 
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
@@ -195,6 +213,27 @@ button.ctrl:hover { border-color: var(--sea-bright); }
     inset 0 -1px 0 rgba(0, 0, 0, 0.2),
     0 12px 32px rgba(0, 0, 0, 0.45);
   z-index: 50;
+  overflow: hidden; /* clips the glass sweep + liquid indicator to the pill shape */
+}
+
+/* A soft light streak sweeping across the glass, on a loop -- reinforces
+   "this is a lit, curved glass surface" beyond the static gradient above. */
+.bottom-nav::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 35%;
+  height: 100%;
+  background: linear-gradient(115deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+  transform: translateX(-180%) skewX(-20deg);
+  animation: glassSweep 5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes glassSweep {
+  0%   { transform: translateX(-180%) skewX(-20deg); }
+  22%  { transform: translateX(260%) skewX(-20deg); }
+  100% { transform: translateX(260%) skewX(-20deg); }
 }
 
 /* The morphing "liquid" pill -- a single absolutely-positioned blob that

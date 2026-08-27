@@ -27,37 +27,52 @@ from ocean_pipeline_demo import (
     train_and_evaluate,
     marine_heatwave_series,
 )
-from dl_pipeline import train_pooled_ffnn_and_evaluate, train_cnn_and_evaluate, train_lstm_and_evaluate
+from dl_pipeline import (
+    train_pooled_ffnn_and_evaluate, train_cnn_and_evaluate, train_lstm_and_evaluate,
+    train_vit_and_evaluate, train_autoencoder_and_evaluate,
+)
 
 st.set_page_config(page_title="Sea Green | OceanEmbed", layout="wide", page_icon="🌊")
+
+# Every model trained/tested, same time-based split, same test set (mirrors
+# export_data.py's MODELS list -- keep the two in sync).
+MODELS = [
+    ("rf", "Random Forest", train_and_evaluate),
+    ("cnn", "CNN (satellite patches)", train_cnn_and_evaluate),
+    ("vit", "ViT (attention over patches)", train_vit_and_evaluate),
+    ("autoencoder", "Autoencoder (unsupervised embedding)", train_autoencoder_and_evaluate),
+    ("lstm", "LSTM (depth decoder)", train_lstm_and_evaluate),
+    ("ffnn", "FFNN (headline)", train_pooled_ffnn_and_evaluate),
+]
 
 # ----------------------------------------------------------------------
 # CACHED WRAPPERS around the existing pipeline (so tabs don't retrain
 # the model / regenerate data on every interaction)
 # ----------------------------------------------------------------------
-@st.cache_data(show_spinner="Training Random Forest + FFNN + CNN + LSTM (same test split, for a fair comparison)...")
+@st.cache_data(show_spinner="Training Random Forest + 5 neural-network architectures (same test split, for a fair comparison)...")
 def cached_train():
     X, Y, argo_full = build_training_table()
-    _, _, _, _, rf_metrics = train_and_evaluate(X, Y)
-    _, _, _, _, cnn_metrics = train_cnn_and_evaluate(X, Y)
-    _, _, _, _, lstm_metrics = train_lstm_and_evaluate(X, Y)
-    # FFNN is the headline model (beats the other three -- see
-    # PROJECT_REPORT.txt); its predictions drive every chart below.
-    model, X_test, Y_test, preds, metrics = train_pooled_ffnn_and_evaluate(X, Y)
-    metrics = metrics.merge(
-        rf_metrics[["depth", "rmse_model"]].rename(columns={"rmse_model": "rmse_rf"}), on="depth",
-    ).merge(
-        cnn_metrics[["depth", "rmse_model"]].rename(columns={"rmse_model": "rmse_cnn"}), on="depth",
-    ).merge(
-        lstm_metrics[["depth", "rmse_model"]].rename(columns={"rmse_model": "rmse_lstm"}), on="depth",
+
+    results = {}
+    for key, label, trainer in MODELS:
+        _, X_test, Y_test, preds, metrics = trainer(X, Y)
+        results[key] = {"preds": preds, "metrics": metrics}
+
+    # FFNN is the headline model (wins overall -- see PROJECT_REPORT.txt);
+    # its predictions drive the profile/scatter charts below.
+    preds, metrics = results["ffnn"]["preds"], results["ffnn"]["metrics"]
+    for key in results:
+        if key == "ffnn":
+            continue
+        metrics = metrics.merge(
+            results[key]["metrics"][["depth", "rmse_model"]].rename(columns={"rmse_model": f"rmse_{key}"}),
+            on="depth",
+        )
+
+    model_summary = pd.DataFrame(
+        [{"name": "Naive guess", "avg_rmse": metrics["rmse_baseline"].mean()}]
+        + [{"name": label, "avg_rmse": results[key]["metrics"]["rmse_model"].mean()} for key, label, _ in MODELS]
     )
-    model_summary = pd.DataFrame([
-        {"name": "Naive guess", "avg_rmse": rf_metrics["rmse_baseline"].mean()},
-        {"name": "Random Forest", "avg_rmse": rf_metrics["rmse_model"].mean()},
-        {"name": "CNN (satellite patches)", "avg_rmse": cnn_metrics["rmse_model"].mean()},
-        {"name": "LSTM (depth decoder)", "avg_rmse": lstm_metrics["rmse_model"].mean()},
-        {"name": "FFNN (headline)", "avg_rmse": metrics["rmse_model"].mean()},
-    ])
     return X_test, Y_test, preds, metrics, model_summary
 
 
@@ -202,7 +217,7 @@ with tab1:
 # ----------------------------------------------------------------------
 with tab2:
     st.subheader("Which model wins?")
-    st.caption("Four independently-trained approaches, same held-out test data. Shorter bar = less error.")
+    st.caption("Six independently-trained approaches (one classical, five neural-network designs), same held-out test data. Shorter bar = less error.")
     fig_summary = px.bar(
         model_summary, x="name", y="avg_rmse",
         color=model_summary["avg_rmse"] == model_summary["avg_rmse"].min(),
@@ -213,11 +228,11 @@ with tab2:
     fig_summary.update_layout(showlegend=False, height=350)
     st.plotly_chart(fig_summary, width="stretch")
 
-    st.subheader("RMSE per depth: all four models vs naive baseline")
+    st.subheader("RMSE per depth: all six models vs naive baseline")
 
     metrics_long = metrics.melt(
         id_vars="depth",
-        value_vars=["rmse_baseline", "rmse_rf", "rmse_cnn", "rmse_lstm", "rmse_model"],
+        value_vars=["rmse_baseline", "rmse_rf", "rmse_cnn", "rmse_vit", "rmse_autoencoder", "rmse_lstm", "rmse_model"],
         var_name="method",
         value_name="rmse",
     )
@@ -226,6 +241,8 @@ with tab2:
             "rmse_baseline": "Naive baseline (climatology)",
             "rmse_rf": "Random Forest",
             "rmse_cnn": "CNN (satellite patches)",
+            "rmse_vit": "ViT (attention over patches)",
+            "rmse_autoencoder": "Autoencoder (unsupervised embedding)",
             "rmse_lstm": "LSTM (depth decoder)",
             "rmse_model": "Neural Network (FFNN, headline)",
         }
@@ -238,6 +255,8 @@ with tab2:
             "Naive baseline (climatology)": "#9aa0a6",
             "Random Forest": "#9a7fd1",
             "CNN (satellite patches)": "#e58a3a",
+            "ViT (attention over patches)": "#4fa3e3",
+            "Autoencoder (unsupervised embedding)": "#c463d9",
             "LSTM (depth decoder)": "#e2543f",
             "Neural Network (FFNN, headline)": "#2f6fed",
         },
@@ -254,14 +273,16 @@ with tab2:
                 "rmse_baseline": "RMSE - Naive baseline",
                 "rmse_rf": "RMSE - Random Forest",
                 "rmse_cnn": "RMSE - CNN",
+                "rmse_vit": "RMSE - ViT",
+                "rmse_autoencoder": "RMSE - Autoencoder",
                 "rmse_lstm": "RMSE - LSTM",
                 "rmse_model": "RMSE - FFNN (headline)",
                 "correlation": "Correlation (r)",
                 "bias": "Bias (model - actual)",
             }
         )[[
-            "Depth", "RMSE - Naive baseline", "RMSE - Random Forest", "RMSE - CNN",
-            "RMSE - LSTM", "RMSE - FFNN (headline)", "Correlation (r)", "Bias (model - actual)",
+            "Depth", "RMSE - Naive baseline", "RMSE - Random Forest", "RMSE - CNN", "RMSE - ViT",
+            "RMSE - Autoencoder", "RMSE - LSTM", "RMSE - FFNN (headline)", "Correlation (r)", "Bias (model - actual)",
         ]],
         width="stretch",
         hide_index=True,
