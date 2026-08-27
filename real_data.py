@@ -27,10 +27,32 @@ HEATWAVE_CATEGORIES = [(0.5, "Watch"), (1.0, "Warning"), (1.5, "Severe"), (2.0, 
 
 MOSDAC_DIR = "MOSDAC"
 
+TARGET_RESOLUTION_DEG = 0.25  # the problem statement's required spatial resolution
+
 # Resolve CMEMS files by the variable they actually contain, not by filename --
 # the user's downloads get renamed by the browser ("Sea Surface temp.nc",
 # "Sea surface salinity.nc") and don't reliably match a naming convention.
 _VAR_LABEL = {"thetao": "sst", "so": "sss", "chl": "chl", "phyc": "phyc"}
+
+
+def _regrid_to_target(obj):
+    """
+    Block-mean regrid from CMEMS's native ~0.083 deg grid to the spec's
+    required 0.25 deg, via xarray.coarsen() (genuine spatial averaging,
+    not decimation/subsampling) -- the problem statement explicitly allows
+    "spatial and temporal interpolation/regridding" when a native product
+    isn't already at the required resolution, which is exactly this case.
+    Works on either a DataArray or a Dataset (so it can regrid uo+vo
+    together, keeping their block-averages co-located for a correct
+    vector-field regrid rather than resampling each component separately).
+    No-ops (returns unchanged) if the grid is already coarser than target
+    (e.g. the 0.25 deg chlorophyll product).
+    """
+    lat_step = float(abs(obj.latitude[1] - obj.latitude[0]))
+    factor = round(TARGET_RESOLUTION_DEG / lat_step)
+    if factor <= 1:
+        return obj
+    return obj.coarsen(latitude=factor, longitude=factor, boundary="trim").mean()
 
 
 def _classify(anomaly):
@@ -53,7 +75,7 @@ def _find_cmems_dataset(varname):
     raise FileNotFoundError(f"No .nc file in {os.getcwd()} contains variable '{varname}'")
 
 
-def load_cmems_series(varname="thetao", stride=6):
+def load_cmems_series(varname="thetao", stride=2):
     """
     Real basin surface monitor (SST if varname='thetao', SSS if varname='so'):
     daily-mean series over the pulled window, plus one gridded "current
@@ -79,10 +101,12 @@ def load_cmems_series(varname="thetao", stride=6):
     ]
     today_anomaly = series[-1]["anomaly"]
 
-    latest = sub.isel(time=-1)
+    latest = _regrid_to_target(sub.isel(time=-1))
     lat2d, lon2d = np.meshgrid(latest.latitude.values, latest.longitude.values, indexing="ij")
     vals = latest.values
     mask = ~np.isnan(vals)
+    # `stride` here is now purely a plotting-density choice on an ALREADY
+    # 0.25-deg-regridded field (not a substitute for regridding).
     lat_s, lon_s, val_s = lat2d[mask][::stride], lon2d[mask][::stride], vals[mask][::stride]
 
     return {
@@ -124,10 +148,16 @@ def load_cmems_currents_series(stride=10):
         for d, v in daily.items()
     ]
 
-    latest = sub.isel(time=-1)
+    # Regrid uo/vo TOGETHER (as one Dataset) before computing speed/heading --
+    # averaging the vector components first, then deriving speed/direction
+    # from the averaged vector, is the physically correct way to regrid a
+    # vector field (averaging speed and heading separately would be wrong).
+    latest = _regrid_to_target(sub[["uo", "vo"]].isel(time=-1))
     lat2d, lon2d = np.meshgrid(latest.latitude.values, latest.longitude.values, indexing="ij")
     uo, vo = latest["uo"].values, latest["vo"].values
     mask = ~np.isnan(uo) & ~np.isnan(vo)
+    # `stride` is now a plotting-density choice (arrows overlap if too
+    # dense) applied on top of the already-0.25-deg-regridded field.
     lat_s, lon_s = lat2d[mask][::stride], lon2d[mask][::stride]
     uo_s, vo_s = uo[mask][::stride], vo[mask][::stride]
     speed_s = np.sqrt(uo_s ** 2 + vo_s ** 2)

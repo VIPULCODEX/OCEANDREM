@@ -169,12 +169,27 @@ version, worded for anyone: technical or not.)
      native resolution; only decimated/subsampled for the map visuals, not
      properly interpolated onto one shared grid.
 
-  2. Standardize to 0.25 deg spatial, daily temporal ... NOT DONE
-     Real CMEMS sources are natively 0.083 deg (thetao/so/currents) or
-     0.25 deg (the bonus chlorophyll product only); resampled to DAILY for
-     time series, but never regridded to a uniform 0.25 deg spatial grid.
-     The synthetic pipeline uses a coarser 1.0 deg grid (a deliberate size/
-     speed tradeoff for the map animation, documented in Section 2 item 2).
+  2. Standardize to 0.25 deg spatial, daily temporal ... PARTIAL (was NOT
+     DONE; regridding added 2026-08-27, real-data half only)
+     Real CMEMS sources are natively 0.083 deg (thetao/so/currents), the
+     bonus chlorophyll product is natively 0.25 deg already. All time
+     series were already DAILY (resampled from 6-hourly). Spatial: as of
+     2026-08-27, real_data.py's _regrid_to_target() does a genuine
+     xarray.coarsen().mean() block-average from 0.083 deg to exactly
+     0.25 deg (factor-3 block mean, verified: resulting grid spacing is
+     0.25 deg on the nose) for the SST/SSS snapshot maps AND the current
+     vector field (uo/vo regridded together as one Dataset before
+     computing speed/heading from the averaged vectors -- averaging speed
+     and heading separately would have been physically wrong). This is
+     genuine regridding, not the decimation/subsampling this repo used
+     before -- directly using the spec's own allowance: "perform
+     appropriate spatial and temporal interpolation/regridding" when a
+     native product isn't already at the required resolution. STILL not
+     done: the SYNTHETIC pipeline (the one actually driving the ML
+     training/Results tab) still uses a coarser 1.0 deg grid for its map
+     animation (a deliberate size/speed tradeoff, documented in Section 2
+     item 2) -- so the real-data half of the app is now spec-compliant on
+     resolution, the simulated half is not.
 
   3. Input variables: SST, SSS, SSH/SLA, currents U/V, winds U/V .. PARTIAL
      SST: real. SSS: real. Currents U/V: real. Winds U/V: now structurally
@@ -223,13 +238,15 @@ version, worded for anyone: technical or not.)
      REAL observations (e.g. real Argo profiles or GLORYS) -- so this is
      methodologically correct but not yet validated against reality.
 
-  BOTTOM LINE (updated after adding GNN, same day): of the 7 numbered
-  requirements, 2 are fully done (#4 -- all 5 architecture families now
-  implemented; #6), 2 are effectively done with a caveat (#5, #7 --
-  correct method, synthetic data), 2 are partial with clear, specific
-  gaps (#1, #3), and 1 is not done (#2, spatial/temporal standardization).
-  This is an accurate, unvarnished scorecard, not a sales pitch -- use
-  Section 2 for the itemized reasoning behind each line.
+  BOTTOM LINE (updated after adding GNN + real regridding, same day): of
+  the 7 numbered requirements, 2 are fully done (#4 -- all 5 architecture
+  families now implemented; #6), 2 are effectively done with a caveat
+  (#5, #7 -- correct method, synthetic data), and 3 are partial with
+  clear, specific gaps (#1, #2 -- real data now genuinely regridded to
+  0.25 deg, synthetic pipeline still isn't; #3). Zero requirements are
+  fully not-done anymore. This is an accurate, unvarnished scorecard, not
+  a sales pitch -- use Section 2 for the itemized reasoning behind each
+  line.
 
 
 1b. THE TWO NEW PAPERS (added 2026-08-27) AND HOW THEY MAP TO THE CODE
@@ -327,28 +344,47 @@ spec. Read this section before telling anyone the project is "done".
       - ocean_pipeline_demo.py's synthetic side has no harmonization step at
         all since it generates already-aligned synthetic fields directly.
 
-  [NOT DONE] 2. Standardize to 0.25 deg spatial / daily temporal
-      - CMEMS real data is natively 0.083 deg, 6-hourly -- we resample to
-        DAILY (mean) for the real time series, but we never regrid the
-        0.083 deg grid up to 0.25 deg. The exported map "snapshot" grid is
-        just a strided (coarsened) view of the native grid, not a proper
-        0.25 deg regrid (no interpolation, just decimation).
+  [PARTIAL, updated 2026-08-27: real CMEMS regridding added] 2.
+      Standardize to 0.25 deg spatial / daily temporal
+      - DONE (2026-08-27) for CMEMS: real_data.py now has
+        _regrid_to_target(), a genuine xarray.coarsen(latitude=3,
+        longitude=3, boundary="trim").mean() block-average from the native
+        0.083 deg grid to exactly 0.25 deg (verified: resulting grid
+        spacing is 0.25 deg, not approximate). Applied to the SST/SSS/
+        chlorophyll snapshot maps (load_cmems_series()) AND the current
+        vector field (load_cmems_currents_series() -- regrids uo/vo
+        TOGETHER as one Dataset before computing speed/heading from the
+        averaged vector components, since averaging speed and heading
+        separately would be physically wrong). The chlorophyll product is
+        already natively 0.25 deg, so _regrid_to_target() correctly no-ops
+        for it (factor<=1 check). This replaces what was previously plain
+        decimation (`[::stride]` on the raw native grid) with real spatial
+        averaging -- the exact "interpolation/regridding" the problem
+        statement explicitly permits when a native product isn't already
+        at the required resolution. `stride` parameters in real_data.py
+        are now purely a plotting-density choice applied ON TOP of the
+        already-regridded 0.25 deg field (arrows/points would overlap at
+        full density), not a substitute for regridding.
       - MOSDAC is native swath resolution (~4 km at nadir, geostationary
-        projection), also just decimated by pixel stride, not regridded to
-        a regular 0.25 deg lat/lon grid.
-      - The synthetic pipeline (ocean_pipeline_demo.py) uses GRID_STEP = 1.0
-        deg, not 0.25 deg -- this was a deliberate size/time tradeoff (a
-        0.25 deg grid over this region is ~100x240 = 24,000 points per day;
-        at 30 animation frames that's 720k+ rows, too big to bake into a
-        static JSON cheaply in the time available). If continuing this
-        project, either (a) regrid but heavily subsample only for the map
-        visualization while keeping 0.25 deg for the actual training data,
-        or (b) move the grid to a proper backend/tile-based map (e.g.
-        pre-rendered PNG heatmap tiles) instead of a scatter of raw points.
-      - ACTION ITEM: implement real regridding with e.g. `xesmf` or
-        `scipy.interpolate.griddata` / `xarray.interp` onto a proper
-        0.25 x 0.25 deg lat/lon grid for both real sources, and change
-        GRID_STEP to 0.25 in the synthetic generator too, for consistency.
+        projection): STILL just decimated by pixel stride, not regridded to
+        a regular 0.25 deg lat/lon grid -- lower priority since MOSDAC only
+        feeds the visual "Live Satellite Pass" panel, not any model input.
+      - STILL NOT DONE: the synthetic pipeline (ocean_pipeline_demo.py,
+        the one actually driving the ML training and Results tab) still
+        uses GRID_STEP = 1.0 deg, not 0.25 deg -- this remains a
+        deliberate size/time tradeoff (a 0.25 deg grid over this region is
+        ~100x240 = 24,000 points per day; at 30 animation frames that's
+        720k+ rows, too big to bake into a static JSON cheaply). If
+        continuing this project: (a) regrid but heavily subsample only for
+        the map visualization while keeping 0.25 deg for the actual
+        training data, or (b) move the grid to a proper backend/tile-based
+        map (e.g. pre-rendered PNG heatmap tiles) instead of a scatter of
+        raw points.
+      - ACTION ITEM (remaining): apply the same _regrid_to_target()
+        pattern to MOSDAC (would need reprojecting off its native
+        geostationary grid first, more work than the CMEMS case), and
+        change GRID_STEP to 0.25 in the synthetic generator with a
+        proper subsampling strategy for the map JSON.
 
   [MOSTLY DONE] 3. Input variables  (updated 2026-08-27: currents now real;
       later same day: winds upgraded scalar->true U/V + curl, still synthetic)
