@@ -4,6 +4,8 @@
 
 Argo floats measure subsurface temperature directly but are sparse in space and time. Satellites see the surface (SST, SSH, salinity, wind) continuously and everywhere. This pipeline trains a neural network (FFNN) to learn the surface → subsurface relationship, so subsurface structure can be estimated anywhere in the basin — and tracks basin-wide SST anomaly against climatology to flag marine heatwave events (Hobday-style categories: Watch / Warning / Severe / Extreme).
 
+Surface wind is modeled as true 2D u/v components plus a derived **wind stress curl** field — the specific extra input Xie et al. 2022 ("Attention U-Net" for SCS subsurface reconstruction, IEEE TGRS) found to be their single biggest accuracy lever below ~50 m (it drives Ekman pumping, which changes thermocline depth). Verified on our own data: adding curl measurably helped the spatially-aware models (CNN, ViT) and the sequential one (LSTM), while leaving the flat-feature FFNN essentially unchanged — matching the paper's own finding that this input only pays off for models that can use spatial structure. An optional "adaptive depth-gradient" loss term (`DepthGradientLoss` in `dl_pipeline.py`, `use_depth_grad=True`) is also available, inspired by Wang et al. 2024's knowledge-informed CGKDN model — tested and found not to help on this synthetic data, off by default, documented honestly in `PROJECT_REPORT.txt` §1b/§2.
+
 The dashboard (`public/`) is organized as four tabs: **Live Monitor** (real current data), **The Model** (the reconstruction demo), **Results** (metrics/claims), **How it Works** (methodology, for anyone who wants the detail — kept out of the way of the main flow).
 
 > ℹ **Mixed real + simulated.** The **Live Monitor** tab runs on real
@@ -24,12 +26,12 @@ are shown side by side in the dashboard's Results tab:
 | Model | Type | Input | Mean RMSE | vs. baseline |
 |---|---|---|---|---|
 | Naive guess | — | — | ~0.71°C | — |
-| Random Forest | classical ML | flat features | ~0.33°C | -53% |
-| **FFNN** (headline) | neural net | flat features | ~0.33°C | -54% |
-| ViT | neural net | real 5×5 satellite-grid patch → attention → embedding | ~0.34°C | -52% |
-| CNN | neural net | real 5×5 satellite-grid patch → conv → pooled embedding | ~0.35°C | -51% |
-| LSTM | neural net | depth-sequence decoder | ~0.36-0.40°C | -46-49% |
-| Autoencoder | neural net | unsupervised embedding + small supervised probe | ~0.41°C | -42% |
+| Random Forest | classical ML | flat features (incl. u/v wind + curl) | ~0.34°C | -52% |
+| **FFNN** (headline) | neural net | flat features (incl. u/v wind + curl) | ~0.33°C | -54% |
+| ViT | neural net | real 5×5 satellite-grid patch (sst/ssh/sss/curl) → attention → embedding | ~0.33°C | -53% |
+| CNN | neural net | real 5×5 satellite-grid patch (sst/ssh/sss/curl) → conv → pooled embedding | ~0.34°C | -52% |
+| LSTM | neural net | depth-sequence decoder | ~0.36°C | -49% |
+| Autoencoder | neural net | unsupervised embedding + small supervised probe | ~0.44°C | -38% |
 
 (Exact CNN/ViT/LSTM figures vary slightly run to run — a known PyTorch/cuDNN GPU
 non-determinism quirk in Conv2d/LSTM kernels, not a bug; the ordering is stable.)
@@ -137,6 +139,8 @@ Flip the flag, fill in the two commented API calls, re-run `export_data.py` (or 
 
 - **Marine heatwave detection**: basin-mean SST anomaly vs. a climatology computed across the observation window, classified with Hobday-scale thresholds (0.5 / 1.0 / 1.5 / 2.0 °C).
 - **Adaptive spatiotemporal clustering**: `spatiotemporal_clusters()` groups observations by (lat, lon, day, SSH) before regression — a lightweight KMeans stand-in for the clustering framework in Loo et al., *"An Adaptive Spatiotemporal Clustering Framework for 3D Ocean Subsurface Temperature Reconstruction"* (arXiv:2605.00860, 2026), which groups profiles sharing thermocline structure to improve reconstruction. Cluster membership is fed to the model as a feature and can be toggled as a map overlay in the dashboard. Features are z-scored and `day` is downweighted (0.3x) before clustering — at full/raw weight, `day` being constant within a single map frame dominated cluster assignment and produced degenerate, unbalanced clusters (e.g. only 3 of 6 ever appearing on some days).
+- **Wind stress curl**: `compute_wind_stress_curl()` derives Ekman-pumping-relevant curl from the synthetic 2D wind field, following Xie et al., *"Reconstruction of Subsurface Temperature Field in the South China Sea From Satellite Observations Based on an Attention U-Net Model"* (IEEE TGRS vol. 60, 2022) — their single biggest accuracy lever below ~50 m. Feeds every model (`FEATURE_COLS`) and the CNN/ViT patches (`PATCH_CHANNELS`).
+- **Knowledge-informed depth-gradient loss**: `DepthGradientLoss` (optional, `use_depth_grad=True`) penalizes mismatch in the depth-to-depth *gradient* of the predicted profile, not just each depth in isolation — inspired by the adaptive depth gradient loss in Wang et al., *"Knowledge-Informed Deep Learning Model for Subsurface Thermohaline Reconstruction From Satellite Observations"* (CGKDN, IEEE TGRS vol. 62, 2024). Off by default: tested and found to slightly hurt RMSE on our single-formula synthetic profiles (no genuine vertical heterogeneity for the prior to exploit) — expected to help on real, heterogeneous ocean data instead.
 - **Satellite context**: the dashboard embeds a live NASA Worldview view scoped to the study region (loads client-side; needs internet in the viewer's browser, not this repo).
 
 ## Repo layout

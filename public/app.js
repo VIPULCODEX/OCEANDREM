@@ -82,10 +82,38 @@ function positionIndicator(navId, indicatorId, btnSelector) {
   if (!nav || !indicator) return;
   const active = nav.querySelector(btnSelector);
   if (!active) return;
-  // Position relative to the nav's own padding box, so this works whether
-  // the nav is visible or not (harmless to compute even when hidden).
-  indicator.style.left = `${active.offsetLeft}px`;
-  indicator.style.width = `${active.offsetWidth}px`;
+
+  const newLeft = active.offsetLeft;
+  const newWidth = active.offsetWidth;
+  const prevLeft = indicator.dataset.left ? parseFloat(indicator.dataset.left) : newLeft;
+  const prevWidth = indicator.dataset.width ? parseFloat(indicator.dataset.width) : newWidth;
+  indicator.dataset.left = newLeft;
+  indicator.dataset.width = newWidth;
+
+  if (Math.abs(prevLeft - newLeft) < 0.5) {
+    // Same spot (e.g. just a resize) -- no stretch needed, just settle.
+    indicator.style.transition = "left 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)";
+    indicator.style.left = `${newLeft}px`;
+    indicator.style.width = `${newWidth}px`;
+    return;
+  }
+
+  // Real "liquid glass" motion, iOS-style: the pill briefly ELONGATES to
+  // bridge its old and new position (like a droplet stretching before it
+  // detaches), THEN contracts onto the new tab -- not a plain slide.
+  const bridgeLeft = Math.min(prevLeft, newLeft);
+  const bridgeRight = Math.max(prevLeft + prevWidth, newLeft + newWidth);
+
+  indicator.style.transition = "left 0.16s ease-out, width 0.16s ease-out";
+  indicator.style.left = `${bridgeLeft}px`;
+  indicator.style.width = `${bridgeRight - bridgeLeft}px`;
+
+  window.clearTimeout(indicator._settleTimer);
+  indicator._settleTimer = window.setTimeout(() => {
+    indicator.style.transition = "left 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.38s cubic-bezier(0.34, 1.56, 0.64, 1)";
+    indicator.style.left = `${newLeft}px`;
+    indicator.style.width = `${newWidth}px`;
+  }, 160);
 }
 
 function positionLiquidIndicator() {

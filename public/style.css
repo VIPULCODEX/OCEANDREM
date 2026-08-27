@@ -20,7 +20,14 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: radial-gradient(circle at top, var(--bg-alt), var(--bg) 70%);
+  /* layered radial glows -- warm sea-green from the top (matches the brand
+     mark), a cool teal-blue glow low-right for depth, on the dark base --
+     reads as "ocean lit from above" rather than a flat gradient */
+  background:
+    radial-gradient(ellipse 900px 500px at 15% 0%, rgba(63, 207, 142, 0.10), transparent 60%),
+    radial-gradient(ellipse 800px 600px at 90% 90%, rgba(79, 163, 227, 0.08), transparent 55%),
+    radial-gradient(circle at top, var(--bg-alt), var(--bg) 70%);
+  background-attachment: fixed;
   color: var(--text);
   font-family: var(--font);
   overflow-x: hidden;
@@ -311,11 +318,13 @@ button.ctrl:hover { border-color: var(--sea-bright); }
 .kpi-row-3 { grid-template-columns: repeat(3, 1fr); margin-bottom: 16px; }
 
 .kpi {
-  background: var(--panel);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 55%), var(--panel);
   border: 1px solid var(--panel-border);
   border-radius: 12px;
   padding: 14px 16px;
+  transition: border-color 0.25s ease;
 }
+.kpi:hover { border-color: rgba(63, 207, 142, 0.35); }
 
 .kpi .label {
   font-size: 11.5px;
@@ -361,7 +370,7 @@ button.ctrl:hover { border-color: var(--sea-bright); }
 }
 
 .panel {
-  background: var(--panel);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 45%), var(--panel);
   border: 1px solid var(--panel-border);
   border-radius: 14px;
   padding: 16px 18px 8px;
@@ -409,7 +418,7 @@ button.ctrl:hover { border-color: var(--sea-bright); }
 }
 
 .source-card {
-  background: var(--panel);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 55%), var(--panel);
   border: 1px solid var(--panel-border);
   border-radius: 12px;
   padding: 14px 16px;
