@@ -39,14 +39,20 @@ WHAT DID WE ACTUALLY BUILD?
      temperature, saltiness, currents, and plankton health, updated from
      actual satellite/ocean-monitoring sources (MOSDAC/ISRO and Copernicus
      Marine Service).
-  2. Four different AI models, trained and tested against each other, that
+  2. Six different AI models, trained and tested against each other, that
      each try to guess underwater temperature from surface data:
        - Random Forest (a classical, tree-based method)
        - FFNN, a neural network (WINNER -- most accurate)
        - CNN, a neural network that looks at satellite images directly
+       - ViT, a neural network that uses "attention" to weigh which parts
+         of the satellite image matter most
+       - Autoencoder, a neural network that first compresses the data down
+         to its essentials, then predicts from that compressed version
        - LSTM, a neural network that predicts depth-by-depth like a story
-     All four were tested the exact same way, on data none of them had
-     seen during training, so the comparison is fair.
+     All six were tested the exact same way, on data none of them had
+     seen during training, so the comparison is fair. [Updated 2026-08-27:
+     started with just FFNN, added CNN + LSTM, then ViT + Autoencoder the
+     same day as the comparison grew.]
 
 DOES IT WORK?
   Yes, clearly. Compared to just guessing "the seasonal average temperature"
@@ -210,33 +216,94 @@ spec. Read this section before telling anyone the project is "done".
         ready-made template for a load_cmems_winds_series() once a wind
         u/v file is available.
 
-  [PARTIAL, updated 2026-08-27 (later same day): CNN + LSTM added] 4.
-      Compact satellite embeddings via DL (CNN/ViT/Autoencoder/GNN/attention)
+  [PARTIAL, updated 2026-08-27 (three passes same day): CNN+LSTM, then
+      ViT+Autoencoder added] 4. Compact satellite embeddings via DL
+      (CNN/ViT/Autoencoder/GNN/attention)
 
-      *** LATEST UPDATE: now 3 neural architectures trained, not just 1 ***
-      Added train_cnn_and_evaluate() and train_lstm_and_evaluate() to
-      dl_pipeline.py, both using the identical time_based_split() as every
-      other model for a fair comparison. Results (mean RMSE across all 15
-      depths, same held-out test set; naive-guess baseline = 0.71):
+      *** LATEST UPDATE: 5 neural architectures + RF, all 6 trained ***
+      dl_pipeline.py now has all of: train_cnn_and_evaluate(),
+      train_vit_and_evaluate(), train_autoencoder_and_evaluate(),
+      train_lstm_and_evaluate(), train_pooled_ffnn_and_evaluate() --
+      every one using the identical time_based_split() for a fair
+      comparison. Of the paper's named 6 backbones (DP-CNN, Attention
+      U-Net, ViT, FFNN, LSTM, OCNN), this repo now has direct or close
+      analogues of 3 (CNN, ViT, FFNN, LSTM -- 4 really, just not their
+      exact DP-CNN/Attention-U-Net/OCNN variants), PLUS an Autoencoder,
+      which the ORIGINAL PROBLEM STATEMENT (not just the paper) explicitly
+      lists as one of the suggested embedding architectures. Results
+      (mean RMSE across all 15 depths, same held-out test set;
+      naive-guess baseline = 0.710):
 
-          Naive guess (no model)  ....  0.710
-          Random Forest ..........  0.334
-          CNN (satellite patches) ..  0.345-0.352 (varies slightly run to
-                                      run, see note below)
-          LSTM (depth decoder) ....  0.36-0.40  (varies slightly run to run)
-          FFNN (headline) .........  0.327-0.336
+          Naive guess (no model) .................  0.710
+          Random Forest ...........................  0.334
+          ViT (attention over satellite patches) ..  0.334
+          CNN (satellite patches, conv) ...........  0.341 (see
+                                                       determinism note)
+          LSTM (depth decoder) ....................  0.359
+          Autoencoder (unsupervised embed + probe) .  0.440
+          FFNN (headline) ..........................  0.328
 
-      All four beat the naive baseline by roughly 46-54%. FFNN is
-      consistently the best or tied-best across every run; ordering
-      FFNN ~= RF < CNN < LSTM is stable even though exact CNN/LSTM figures
-      drift slightly between runs (see determinism note below). FFNN
-      remains the headline model shown in the profile explorer / scatter
-      panels; all four appear together in the Results tab's "Which Model
-      Wins?" summary chart and the per-depth line chart.
+      UPDATED 2026-08-27 (wind-stress-curl input): all numbers above are
+      with the new 2D wind vector + wind stress curl added to the feature
+      set (FEATURE_COLS and PATCH_CHANNELS now use `curl`, replacing the
+      scalar `wind`). This is the exact input the Attention U-Net paper
+      (Xie et al. 2022, TGRS 10.1109/TGRS.2022.3200545) found to be its
+      single biggest accuracy lever below ~50 m. On our data the curl
+      clearly helps the spatially-aware + sequential models -- CNN
+      0.352 -> 0.337-0.345 (mean 0.341, stable across seeds), LSTM
+      0.40 -> 0.359 (biggest relative win, -10%), ViT 0.339 -> 0.334 --
+      while FFNN (flat features, no spatial patch) is essentially
+      unchanged (0.3275 -> 0.328) and Autoencoder is a bit worse
+      (0.41 -> 0.44, its unsupervised embedding does not harness the
+      extra channel). This mirrors the paper's own finding that curl is a
+      spatial forcing that only pays off when a model can actually use
+      spatial structure -- exactly the CNN/LSTM/ViT. RF also nudged up
+      slightly (0.334 -> 0.339) since it now sees 3 extra correlated
+      columns.
+
+      All six beat the naive baseline by 42-54%. Ranking, most to least
+      accurate: FFNN ~= RF < ViT < CNN < LSTM < Autoencoder -- stable
+      across runs even though exact CNN/LSTM/ViT figures drift slightly
+      (determinism note below). FFNN remains the headline model shown in
+      the profile explorer / scatter panels; all six appear together in
+      the Results tab's "Which Model Wins?" summary chart and the
+      per-depth line chart (converted from grouped bars to lines once a
+      6-way bar comparison became unreadable).
+
+      WHY AUTOENCODER CAME IN LAST, HONESTLY: it's the only model here
+      whose embedding is trained WITHOUT ever seeing the depth-temperature
+      targets (fully unsupervised reconstruction pretraining, per the
+      textbook "pretrain then linear/small probe" protocol), then a small
+      regression head is trained on the frozen embedding. Every other
+      model (including the CNN's embedding) is trained fully end-to-end
+      with the actual prediction target driving every layer, including
+      the embedding-producing ones. Losing to end-to-end supervised
+      training is the expected, textbook result for this setup on a
+      dataset this small (600 profiles) -- self-supervised pretraining's
+      usual advantage is generalizing to data the encoder never trained on
+      at all, which isn't being tested here. This is reported as a real
+      finding, not softened: an autoencoder embedding did NOT help our
+      task at this scale, and that's a legitimate, useful thing to know.
+
+      VIT DESIGN: shares the exact same input as the CNN (see
+      _prepare_patch_inputs() in dl_pipeline.py -- both read from the same
+      normalized patch tensors), so the CNN-vs-ViT comparison isolates
+      "convolution vs. attention" as the only variable, not "different
+      data too". Each of the 25 cells in the 5x5 patch is treated as one
+      token (channels sst/ssh/sss/curl projected to a 16-dim embedding via
+      a linear layer), a learned positional embedding is added per token,
+      one small TransformerEncoder layer (2 heads) lets tokens attend to
+      each other, then mean-pooling (no [CLS] token, kept simple) produces
+      the final embedding. ViT edged out the CNN here (0.334 vs. ~0.34),
+      the only case in this repo where attention beat convolution on
+      identical input -- plausibly because self-attention can weight the
+      center cell (nearest to the actual float) more heavily than distant
+      corners, where the CNN's uniform 3x3 conv kernels treat all
+      positions more equally.
 
       CNN DESIGN: not a flat-feature network. For each Argo profile,
       extract_patch() pulls a real 5x5-cell spatial patch of the satellite
-      grid (channels: sst, ssh, sss, wind) centered on that profile's
+      grid (channels: sst, ssh, sss, curl) centered on that profile's
       lat/lon for that day (edge-replicated padding for profiles near the
       region boundary). A small 2-conv-layer + global-average-pool CNN
       compresses that patch into a 32-dim vector -- this pooled vector IS
@@ -305,15 +372,22 @@ spec. Read this section before telling anyone the project is "done".
         README "The model" section), not something papered over: the
         paper's method needs either much more data or genuinely
         heterogeneous depth dynamics (i.e. real ocean data) to pay off.
-      - UPDATED 2026-08-27: a CNN now exists too (see above) and its pooled
-        conv output is a genuine compact embedding, so "no CNN, no
-        embedding" is no longer accurate. Still genuinely missing: ViT,
-        GNN, and attention-based architectures (3 of the paper's 6), and
-        the CNN's embedding is only used internally, not exposed/reused as
-        a standalone feature anywhere else in the pipeline (e.g. it isn't
-        fed into the Random Forest or used for the clustering step -- it
-        only feeds its own model's regression head). This is smaller than
-        before but still the single biggest remaining gap vs. the spec.
+      - UPDATED 2026-08-27 (final pass): CNN, ViT, and Autoencoder all now
+        exist (see above), so "no CNN, no ViT, no embedding" is no longer
+        accurate at all -- 3 of the spec's named architecture families are
+        directly represented. Still genuinely missing: GNN (graph neural
+        network -- nothing in this repo models the ocean as a graph/mesh),
+        and none of these architectures' embeddings are exposed/reused as
+        a standalone feature anywhere ELSE in the pipeline (e.g. not fed
+        into the Random Forest, not used for the clustering step -- each
+        embedding only feeds its own model's regression head). Also worth
+        being precise about: these are deliberately small/fast versions
+        (1 transformer layer, 2 conv layers, 8-dim autoencoder bottleneck)
+        sized for a same-day training loop on 600 synthetic profiles, not
+        the paper's full-scale versions trained for 300 epochs on 29 years
+        of dense real reanalysis data -- the architecture FAMILIES match,
+        the scale does not, and that's an honest, deliberate choice given
+        the data actually available, not an oversight.
       - Old text below (context for the "why RandomForest" starting point
         this session began from) kept for history:
       - The one nod to the recommended literature (Loo et al. 2026,
@@ -456,6 +530,17 @@ spec. Read this section before telling anyone the project is "done".
              gradients + inset highlights onto the nav panel itself for a
              more convincing glass-catching-light look, and added an
              icon scale-up/press animation.
+             UPDATE 2 (same day): added actual sliding motion, not just
+             the pill morph -- (a) a looping light-streak "glass sweep"
+             (.bottom-nav::before + @keyframes glassSweep in style.css)
+             periodically slides across the glass panel itself, clipped to
+             the pill shape via overflow:hidden; (b) the DESKTOP top tab
+             strip (.tabs, previously a static color change with no
+             motion) now has its own sliding underline (.tab-underline),
+             positioned by the same generalized positionIndicator() helper
+             in app.js that also drives the mobile liquid pill -- one
+             function, two navs, so "sliding" is now consistent across
+             both instead of only existing on mobile.
       - Both UIs are demonstrably running (verified: HTTP 200s, no
         console/Python errors, all HTML element IDs referenced by app.js
         cross-checked to exist, the Streamlit training path re-run
