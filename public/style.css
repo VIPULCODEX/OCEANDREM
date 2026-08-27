@@ -6,7 +6,7 @@
   --sea: #2e8b57;
   --sea-bright: #3fcf8e;
   --text: #e8f5f0;
-  --text-dim: #9fc4ba;
+  --text-dim: #a9d3c8;
   --normal: #3fcf8e;
   --watch: #e3c23c;
   --warning: #e58a3a;
@@ -72,6 +72,10 @@ header.top {
   font-size: 20px;
   margin: 0;
   letter-spacing: 0.3px;
+  background: linear-gradient(120deg, var(--text) 30%, var(--sea-bright));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .brand p {

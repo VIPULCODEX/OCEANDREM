@@ -121,6 +121,17 @@ For a Space: pick the **Streamlit** SDK, point it at this repo, and it picks up 
   That's 4 of the spec's 5 required surface inputs now backed by real data —
   only **SSH/SLA** and **surface winds** are still missing.
 
+All CMEMS grids (SST/SSS/chlorophyll maps + the current vector field) are
+**genuinely regridded to the spec's required 0.25°** via `_regrid_to_target()`
+(`xarray.coarsen().mean()`, a real block-average from the native 0.083°,
+verified to land on exactly 0.25° spacing) — not just decimated/subsampled
+like earlier builds. Vector fields (uo/vo) are regridded as one Dataset
+*before* speed/heading are derived, since averaging speed and heading
+separately would be physically wrong. MOSDAC (native geostationary swath
+resolution) and the synthetic pipeline's map grid (still 1.0°, a deliberate
+size/speed tradeoff) are not yet regridded — see `PROJECT_REPORT.txt` §2
+item 2 for the honest full picture.
+
 To refresh with new files, drop them in `MOSDAC/` / the repo root and re-run:
 
 ```bash
