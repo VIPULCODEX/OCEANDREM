@@ -4,6 +4,7 @@ pandas
 numpy
 scikit-learn
 matplotlib
+torch                  # FFNN reconstruction model -- required by export_data.py (via dl_pipeline.py)
 
 # Optional, only needed once USE_SYNTHETIC_DATA=False in ocean_pipeline_demo.py:
 # argopy               # real Argo float profiles

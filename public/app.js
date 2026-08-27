@@ -30,7 +30,9 @@ async function boot() {
   const res = await fetch("data.json");
   DATA = await res.json();
 
+  setupTabs();
   populateSelectors();
+  drawClaimBanner();
   drawStatic();
   renderFrame(0);
   startLoop();
@@ -48,6 +50,38 @@ async function boot() {
   bootReal();
 }
 
+function setupTabs() {
+  const buttons = document.querySelectorAll(".tab-btn");
+  const panels = document.querySelectorAll(".tab-panel");
+
+  function showTab(name) {
+    buttons.forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
+    panels.forEach((p) => p.classList.toggle("active", p.dataset.tab === name));
+    // Plotly charts drawn while their tab was hidden render at zero width;
+    // a resize event after the panel becomes visible fixes them (all our
+    // charts use responsive:true, which listens for this).
+    requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+  }
+
+  buttons.forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
+  document.querySelectorAll("[data-tab-link]").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      showTab(el.dataset.tabLink);
+    });
+  });
+}
+
+function drawClaimBanner() {
+  const m = DATA.meta;
+  document.getElementById("claimHeadline").textContent =
+    `${m.model_name} cuts error by ${m.avg_rmse_improvement_pct}% vs. a naive guess`;
+  document.getElementById("claimCorr").textContent = m.avg_correlation.toFixed(2);
+  document.getElementById("claimVsRf").textContent =
+    `${m.avg_rmse_vs_rf_pct >= 0 ? "" : "-"}${Math.abs(m.avg_rmse_vs_rf_pct)}%`;
+  document.getElementById("resultsCorr").textContent = m.avg_correlation.toFixed(2);
+}
+
 async function bootReal() {
   try {
     const res = await fetch("data_real.json");
@@ -62,7 +96,6 @@ async function bootReal() {
   document.getElementById("realSstDate").textContent = `as of ${c.window_end}`;
   document.getElementById("realAnomalyValue").textContent =
     `${c.today_anomaly >= 0 ? "+" : ""}${c.today_anomaly.toFixed(2)}°C vs. window mean (${c.window_mean_sst.toFixed(2)}°C)`;
-  document.getElementById("realWindow").textContent = `${c.window_start} → ${c.window_end}`;
   const chip = document.getElementById("realChip");
   chip.textContent = c.today_category;
   chip.className = `chip ${c.today_category}`;
@@ -219,13 +252,16 @@ function populateSelectors() {
 }
 
 function drawStatic() {
-  // RMSE bar chart (static across the whole session)
+  // RMSE bar chart (static across the whole session) -- three-way comparison
   const depths = DATA.metrics.map((m) => `${m.depth}m`);
+  const modelName = DATA.meta.model_name || "Model";
+  const baselineName = DATA.meta.baseline_model_name || "Random Forest";
   Plotly.newPlot(
     "rmseChart",
     [
-      { x: depths, y: DATA.metrics.map((m) => m.rmse_baseline), name: "Naive climatology", type: "bar", marker: { color: "#5c7d76" } },
-      { x: depths, y: DATA.metrics.map((m) => m.rmse_model), name: "Model (Random Forest)", type: "bar", marker: { color: "#3fcf8e" } },
+      { x: depths, y: DATA.metrics.map((m) => m.rmse_baseline), name: "Naive guess", type: "bar", marker: { color: "#5c7d76" } },
+      { x: depths, y: DATA.metrics.map((m) => m.rmse_rf), name: baselineName, type: "bar", marker: { color: "#4fa3e3" } },
+      { x: depths, y: DATA.metrics.map((m) => m.rmse_model), name: modelName, type: "bar", marker: { color: "#3fcf8e" } },
     ],
     { ...PLOTLY_DARK, barmode: "group", legend: { orientation: "h", y: -0.25 }, yaxis: { title: "RMSE (°C)", gridcolor: "#1c4a41" }, xaxis: { title: "Depth" } },
     { displayModeBar: false, responsive: true }
@@ -262,16 +298,19 @@ function drawStatic() {
 }
 
 function drawMetricsTable() {
+  const modelName = DATA.meta.model_name || "Model";
+  const baselineName = DATA.meta.baseline_model_name || "Random Forest";
   const rows = DATA.metrics.map((m) => `
     <tr>
       <td>${m.depth} m</td>
-      <td>${m.rmse_model.toFixed(3)}</td>
       <td>${m.rmse_baseline.toFixed(3)}</td>
+      <td>${m.rmse_rf.toFixed(3)}</td>
+      <td>${m.rmse_model.toFixed(3)}</td>
       <td>${m.correlation.toFixed(3)}</td>
       <td>${m.bias >= 0 ? "+" : ""}${m.bias.toFixed(3)}</td>
     </tr>`).join("");
   document.getElementById("metricsTable").innerHTML = `
-    <thead><tr><th>Depth</th><th>RMSE (model)</th><th>RMSE (baseline)</th><th>Correlation (r)</th><th>Bias</th></tr></thead>
+    <thead><tr><th>Depth</th><th>Naive guess</th><th>${baselineName}</th><th>${modelName}</th><th>Correlation</th><th>Bias</th></tr></thead>
     <tbody>${rows}</tbody>`;
 }
 
@@ -302,8 +341,8 @@ function drawProfile() {
   Plotly.newPlot(
     "profileChart",
     [
-      { x: p.actual, y: depths, mode: "lines+markers", name: "Actual (Argo)", line: { color: "#3fcf8e", width: 2 } },
-      { x: p.predicted, y: depths, mode: "lines+markers", name: "Predicted (surface-only)", line: { color: "#e58a3a", width: 2, dash: "dash" }, marker: { symbol: "square" } },
+      { x: p.actual, y: depths, mode: "lines+markers", name: "Actual (float reading)", line: { color: "#3fcf8e", width: 2 } },
+      { x: p.predicted, y: depths, mode: "lines+markers", name: `Predicted (${DATA.meta.model_name || "model"})`, line: { color: "#e58a3a", width: 2, dash: "dash" }, marker: { symbol: "square" } },
     ],
     { ...PLOTLY_DARK, xaxis: { title: "Temperature (°C)", gridcolor: "#1c4a41" }, yaxis: { title: "Depth (m)", autorange: "reversed", gridcolor: "#1c4a41" }, legend: { orientation: "h", y: -0.2 } },
     { displayModeBar: false, responsive: true }

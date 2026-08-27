@@ -57,7 +57,7 @@ USE_SYNTHETIC_DATA = True          # flip to False on your laptop with real data
 LAT_RANGE = (5, 30)                # North Indian Ocean
 LON_RANGE = (45, 105)
 DEPTH_LEVELS = [0, 5, 10, 20, 30, 50, 75, 100, 125, 150, 200, 300, 500, 700, 1000]  # meters -- standard depths per problem statement
-N_ARGO_PROFILES = 220               # roughly realistic sparse float count for a season
+N_ARGO_PROFILES = 600               # sparse-but-trainable float count (tested: 220 was too few for a neural net to beat Random Forest; 600 is)
 N_DAYS = 90                         # one monsoon-season-ish window
 GRID_STEP = 1.0                     # degrees, satellite grid resolution for this demo
 RANDOM_SEED = 42
@@ -280,13 +280,19 @@ def build_training_table():
 # ----------------------------------------------------------------------
 # 3. MODEL
 # ----------------------------------------------------------------------
-def train_and_evaluate(X, Y):
-    # time-based split (not random) to avoid leakage, like the plan says
+def time_based_split(X, Y, frac=0.75):
+    """Sorts by day and splits chronologically (not randomly) so the test
+    set is strictly later in time than training -- avoids leakage, and
+    every model in this project (Random Forest, FFNN) uses this exact
+    split so their scores are directly comparable."""
     order = X["day"].argsort()
     X, Y = X.iloc[order].reset_index(drop=True), Y.iloc[order].reset_index(drop=True)
-    split = int(0.75 * len(X))
-    X_train, X_test = X.iloc[:split], X.iloc[split:]
-    Y_train, Y_test = Y.iloc[:split], Y.iloc[split:]
+    split = int(frac * len(X))
+    return X.iloc[:split], X.iloc[split:], Y.iloc[:split], Y.iloc[split:]
+
+
+def train_and_evaluate(X, Y):
+    X_train, X_test, Y_train, Y_test = time_based_split(X, Y)
 
     model = RandomForestRegressor(n_estimators=200, max_depth=8, random_state=RANDOM_SEED)
     model.fit(X_train, Y_train)

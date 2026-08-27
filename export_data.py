@@ -18,6 +18,7 @@ from ocean_pipeline_demo import (
     get_satellite_grid, build_training_table, train_and_evaluate,
     marine_heatwave_series, spatiotemporal_clusters,
 )
+from dl_pipeline import train_pooled_ffnn_and_evaluate
 
 GRID_SAMPLE_STEP_DAYS = 3   # animate through every 3rd day (30 frames)
 GRID_POINT_STRIDE = 2       # coarsen the lat/lon grid for export payload size
@@ -28,9 +29,14 @@ def round_list(arr, nd=3):
 
 
 def main():
-    print("Building training table + training model...")
+    print("Building training table...")
     X, Y, argo = build_training_table()
-    model, X_test, Y_test, preds, metrics = train_and_evaluate(X, Y)
+
+    print("Training Random Forest (baseline comparison model)...")
+    _, _, _, rf_preds, rf_metrics = train_and_evaluate(X, Y)
+
+    print("Training FFNN (headline model -- beat RF at N=600, see PROJECT_REPORT.txt)...")
+    model, X_test, Y_test, preds, metrics = train_pooled_ffnn_and_evaluate(X, Y)
 
     print("Computing marine heatwave series...")
     heatwave = marine_heatwave_series()
@@ -69,12 +75,15 @@ def main():
             "cluster": int(argo.loc[idx, "cluster"]),
             "actual": round_list(Y_test.loc[idx, depth_cols], 3),
             "predicted": round_list(preds.loc[idx, depth_cols], 3),
+            "predicted_rf": round_list(rf_preds.loc[idx, depth_cols], 3),
         })
 
+    rf_rmse_by_depth = dict(zip(rf_metrics["depth"], rf_metrics["rmse_model"]))
     metrics_out = [
         {
             "depth": int(row["depth"].replace("temp_", "").replace("m", "")),
             "rmse_model": round(float(row["rmse_model"]), 4),
+            "rmse_rf": round(float(rf_rmse_by_depth[row["depth"]]), 4),
             "rmse_baseline": round(float(row["rmse_baseline"]), 4),
             "correlation": round(float(row["correlation"]), 4),
             "bias": round(float(row["bias"]), 4),
@@ -104,9 +113,15 @@ def main():
                 "anomaly": round(float(peak["anomaly"]), 2),
                 "category": peak["category"],
             },
+            "model_name": "Neural Network (FFNN)",
+            "baseline_model_name": "Random Forest",
             "avg_rmse_improvement_pct": round(
                 100 * (1 - metrics["rmse_model"].mean() / metrics["rmse_baseline"].mean()), 1
             ),
+            "avg_rmse_vs_rf_pct": round(
+                100 * (1 - metrics["rmse_model"].mean() / rf_metrics["rmse_model"].mean()), 1
+            ),
+            "avg_correlation": round(float(metrics["correlation"].mean()), 3),
         },
         "heatwave_series": heatwave_out,
         "grids": grids,

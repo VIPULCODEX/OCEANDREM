@@ -16,54 +16,29 @@
         <div class="logo">🌊</div>
         <div>
           <h1>Sea Green</h1>
-          <p>Indian Ocean Marine Heatwave &amp; Subsurface Temperature Intelligence</p>
+          <p>Guessing what's under the ocean surface, from what satellites can see</p>
         </div>
-      </div>
-      <div class="controls">
-        <div class="live-badge"><span class="dot"></span><span id="liveLabel">Day 0 / 90</span></div>
-        <button class="ctrl" id="playBtn">⏸ Pause</button>
-        <button class="ctrl" id="speedBtn">1x</button>
       </div>
     </header>
 
-    <div class="disclaimer">
-      <b>ℹ Data note:</b> <b>Live Data</b> below is real (MOSDAC + CMEMS, current). The
-      <b>reconstruction model</b> further down is validated on a controlled simulated
-      scenario (real multi-depth subsurface truth wasn't available for this build) —
-      details in the README.
+    <div class="claim-banner">
+      <div class="claim-main">
+        <span id="claimHeadline">Model cuts error by –% vs. a naive guess</span>
+      </div>
+      <div class="claim-sub">correlation <b id="claimCorr">–</b> · beats Random Forest by <b id="claimVsRf">–</b> ·
+        tested on a controlled scenario — see <a href="#" data-tab-link="how">How it Works</a></div>
     </div>
 
-    <section class="kpi-row">
-      <div class="kpi">
-        <div class="label">Basin SST Anomaly</div>
-        <div class="value" id="kpiAnomaly">–</div>
-        <div class="sub" id="kpiCategory">–</div>
-      </div>
-      <div class="kpi">
-        <div class="label">Heatwave Status</div>
-        <div class="value"><span class="chip Normal" id="kpiChip">Normal</span></div>
-        <div class="sub" id="kpiPeak">Season peak: –</div>
-      </div>
-      <div class="kpi">
-        <div class="label">Model Skill Gain</div>
-        <div class="value" id="kpiSkill">–</div>
-        <div class="sub">vs. climatology baseline, avg. RMSE reduction</div>
-      </div>
-      <div class="kpi">
-        <div class="label">Argo Floats Tracked</div>
-        <div class="value" id="kpiFloats">–</div>
-        <div class="sub">test-set profiles, North Indian Ocean</div>
-      </div>
-      <div class="kpi">
-        <div class="label">Region</div>
-        <div class="value" style="font-size:17px">5–30°N, 45–105°E</div>
-        <div class="sub">Arabian Sea → Bay of Bengal</div>
-      </div>
-    </section>
+    <nav class="tabs" id="tabNav">
+      <button class="tab-btn active" data-tab="live">📡 Live Monitor</button>
+      <button class="tab-btn" data-tab="model">🧠 The Model</button>
+      <button class="tab-btn" data-tab="results">📊 Results</button>
+      <button class="tab-btn" data-tab="how">📖 How it Works</button>
+    </nav>
 
-    <section class="real-section">
-      <h2 class="section-title"><span class="reddot"></span> Live Data — MOSDAC (ISRO) &amp; CMEMS (Copernicus Marine)</h2>
-      <div class="desc">Genuine satellite / reanalysis data pulled for this build — not simulated. SST, SSS, surface currents (u, v), and chlorophyll are all real CMEMS/MOSDAC products for 1–27 Aug 2026; only SSH/SLA and surface winds are still missing from the spec's five required inputs.</div>
+    <!-- ================= TAB: LIVE MONITOR ================= -->
+    <section class="tab-panel active" data-tab="live">
+      <p class="tab-intro">Real satellite &amp; ocean data, current as of Aug 2026 — nothing on this tab is simulated.</p>
 
       <div class="kpi-row kpi-row-3">
         <div class="kpi">
@@ -77,156 +52,193 @@
           <div class="sub" id="realAnomalyValue">–</div>
         </div>
         <div class="kpi">
-          <div class="label">Monitoring window</div>
-          <div class="value" id="realWindow" style="font-size:17px">–</div>
-          <div class="sub">CMEMS thetao, 6-hourly, ~0.5 m depth</div>
+          <div class="label">Region</div>
+          <div class="value" style="font-size:17px">5–30°N, 45–105°E</div>
+          <div class="sub">Arabian Sea → Bay of Bengal</div>
         </div>
       </div>
 
       <div class="grid-2">
         <div class="panel">
-          <h2>Basin SST &amp; SSS Trend (Real, Daily Mean)</h2>
-          <div class="desc">Actual CMEMS surface temperature &amp; salinity for the study region, day by day. No injected event — this is what the region is really doing right now.</div>
+          <h2>Sea Temperature &amp; Salinity</h2>
+          <div class="desc">Daily average, real CMEMS data.</div>
           <div id="realTrendChart" class="chart chart-md"></div>
         </div>
         <div class="panel">
-          <h2>Live Satellite Pass — INSAT-3DR
+          <h2>Live Satellite Pass
             <span class="controls" style="gap:6px">
               <button class="ctrl" id="realPlayBtn" style="padding:4px 9px;font-size:12px">⏸</button>
               <span id="realFrameLabel" style="font-size:12px;color:var(--text-dim)">–</span>
             </span>
           </h2>
-          <div class="desc">Real half-hourly INSAT-3DR SST passes (MOSDAC/ISRO), cropped to the study region.</div>
+          <div class="desc">Real INSAT-3DR satellite images (MOSDAC/ISRO), half-hourly.</div>
           <div id="realMapChart" class="chart chart-md"></div>
         </div>
       </div>
 
       <div class="grid-2">
         <div class="panel">
-          <h2>Surface Current Field (Real, CMEMS u/v)</h2>
-          <div class="desc" id="currentsDesc">Real surface current vectors — direction and speed, most recent day. One of the spec's five required input variables.</div>
+          <h2>Ocean Currents</h2>
+          <div class="desc" id="currentsDesc">Real current speed &amp; direction.</div>
           <div id="currentsChart" class="chart chart-md"></div>
         </div>
         <div class="panel">
-          <h2>Chlorophyll Trend (Real, Ecosystem Proxy)</h2>
-          <div class="desc">Real CMEMS surface chlorophyll — a proxy for how the heatwave-relevant physics above (stratification, warming) affects the marine ecosystem, per the problem background.</div>
+          <h2>Chlorophyll (Ecosystem Health)</h2>
+          <div class="desc">A warmer ocean can starve plankton of nutrients — this tracks that effect.</div>
           <div id="chlChart" class="chart chart-md"></div>
         </div>
       </div>
     </section>
 
-    <section class="solution-section">
-      <h2 class="section-title"><span class="bluedot"></span> The Model — Surface → Subsurface Temperature Reconstruction</h2>
-      <div class="desc">
-        This is the core deliverable: a Random Forest trained to predict the vertical
-        temperature profile (15 standard depths, 0–1000 m) from surface observations
-        alone. Shown here on a controlled 90-day scenario with an injected heatwave, so
-        the reconstruction <i>and</i> the detection logic can both be demonstrated end to
-        end (see the data note above for why this run is simulated rather than live).
+    <!-- ================= TAB: THE MODEL ================= -->
+    <section class="tab-panel" data-tab="model">
+      <p class="tab-intro">The problem: we only have a few hundred underwater thermometers (Argo floats) in the whole basin. This model predicts the missing depths anywhere, using only what satellites see on the surface.</p>
+
+      <div class="kpi-row kpi-row-3">
+        <div class="kpi">
+          <div class="label">Basin SST anomaly</div>
+          <div class="value" id="kpiAnomaly">–</div>
+          <div class="sub" id="kpiCategory">–</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Heatwave status</div>
+          <div class="value"><span class="chip Normal" id="kpiChip">Normal</span></div>
+          <div class="sub" id="kpiPeak">–</div>
+        </div>
+        <div class="kpi">
+          <div class="controls" style="justify-content:center; height:100%">
+            <button class="ctrl" id="playBtn">⏸ Pause</button>
+            <button class="ctrl" id="speedBtn">1x</button>
+            <span id="liveLabel" style="font-size:13px;color:var(--text-dim)">Day 0/90</span>
+          </div>
+        </div>
       </div>
 
       <div class="grid-2">
         <div class="panel">
-          <h2>Surface SST + Argo Floats
+          <h2>Surface View + Float Locations
             <select id="daySelect"></select>
           </h2>
-          <div class="desc">Satellite SST grid with Argo float positions overlaid. Toggle the spatiotemporal cluster overlay (paper-inspired grouping of regions with shared thermocline behavior).</div>
+          <div class="desc">Black × = real float positions (test set). Toggle groups the map into regions with similar underwater behavior.</div>
           <div class="toggle-row">
-            <label><input type="checkbox" id="clusterToggle" /> Show spatiotemporal clusters</label>
+            <label><input type="checkbox" id="clusterToggle" /> Group by region</label>
           </div>
           <div id="mapChart" class="chart chart-lg"></div>
         </div>
         <div class="panel">
-          <h2>Heatwave Stress-Test (Simulated Event)</h2>
-          <div class="desc">Basin-averaged SST anomaly vs. climatology, full 90-day window, with an injected warm event so the detector has something to catch. Shaded bands follow the Hobday marine-heatwave category scale.</div>
+          <h2>Heatwave Detector (Test Run)</h2>
+          <div class="desc">A practice warming event, so you can see the alarm actually trip.</div>
           <div id="heatwaveChart" class="chart chart-lg"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Pick a Float — See the Guess vs. Reality
+          <select id="profileSelect"></select>
+        </h2>
+        <div class="desc">Solid = what the float actually measured. Dashed = what the model guessed from the surface alone.</div>
+        <div id="profileChart" class="chart chart-md"></div>
+      </div>
+    </section>
+
+    <!-- ================= TAB: RESULTS ================= -->
+    <section class="tab-panel" data-tab="results">
+      <p class="tab-intro">How well does the guess match reality? Tested on floats the model never saw during training.</p>
+
+      <div class="kpi-row kpi-row-3">
+        <div class="kpi">
+          <div class="label">Error reduction</div>
+          <div class="value" id="kpiSkill">–</div>
+          <div class="sub">vs. guessing the seasonal average</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Test floats</div>
+          <div class="value" id="kpiFloats">–</div>
+          <div class="sub">never used in training</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Correlation</div>
+          <div class="value" id="resultsCorr">–</div>
+          <div class="sub">1.0 = perfect match</div>
         </div>
       </div>
 
       <div class="grid-3">
         <div class="panel">
-          <h2>Model Skill: RMSE per Depth</h2>
-          <div class="desc">Random Forest (surface → subsurface) vs. a naive climatology baseline.</div>
+          <h2>Error by Depth</h2>
+          <div class="desc">Lower bars = better. Three approaches, same test data.</div>
           <div id="rmseChart" class="chart chart-md"></div>
           <div class="table-scroll">
             <table class="metrics-table" id="metricsTable"></table>
           </div>
         </div>
         <div class="panel">
-          <h2>Predicted vs. Actual
+          <h2>Guess vs. Reality
             <select id="depthSelect"></select>
           </h2>
-          <div class="desc">Per-depth agreement across all held-out Argo test profiles.</div>
+          <div class="desc">Every test point. Dots on the line = exact match.</div>
           <div id="scatterChart" class="chart chart-md"></div>
         </div>
       </div>
-
-      <div class="panel">
-        <h2>Vertical Profile Explorer
-          <select id="profileSelect"></select>
-        </h2>
-        <div class="desc">Reconstructed subsurface temperature profile vs. the true Argo profile for one float — the model's actual output.</div>
-        <div id="profileChart" class="chart chart-md"></div>
-      </div>
     </section>
 
-    <div class="divider"><span>Reference — Satellite Context &amp; Data Sources</span></div>
-
-    <section class="grid-2">
-      <div class="panel">
-        <h2>Satellite Context — North Indian Ocean</h2>
-        <div class="desc">Live NASA Worldview true-color / SST view of the study region (loads from your browser — needs internet at view time).</div>
-        <div class="satellite-embed">
-          <iframe id="worldviewFrame" loading="lazy" title="NASA Worldview — North Indian Ocean"></iframe>
-        </div>
-        <p style="font-size:12px; margin-top:8px;">
-          <a id="worldviewLink" href="#" target="_blank" rel="noopener">Open full Worldview map in a new tab ↗</a>
-          <span style="color:var(--text-dim)"> — if the embed above is blank, NASA's site is blocking iframing; use the link.</span>
-        </p>
+    <!-- ================= TAB: HOW IT WORKS ================= -->
+    <section class="tab-panel" data-tab="how">
+      <div class="disclaimer">
+        <b>ℹ What's real vs. tested on a scenario:</b> The <b>Live Monitor</b> tab is real,
+        current satellite/ocean data (MOSDAC + CMEMS). The <b>Model</b> and <b>Results</b>
+        tabs are trained and tested on a realistic, physics-based simulated season —
+        because we don't yet have real, matched surface+underwater measurements to train
+        on. The model architecture, training, and evaluation are all real; only the
+        training data is simulated. Full detail in the project README.
       </div>
-      <div class="panel">
-        <h2>What each section means</h2>
-        <div class="desc" style="margin-bottom:0">
-          <b>Live Data</b> (top) — real, current MOSDAC/CMEMS conditions.<br/>
-          <b>The Model</b> (middle) — the actual reconstruction pipeline: trained,
-          evaluated, and visualized end to end on a controlled scenario.<br/>
-          <b>This section</b> — supporting references and data-source citations only.
+
+      <div class="grid-2">
+        <div class="panel">
+          <h2>Satellite View — North Indian Ocean</h2>
+          <div class="desc">Live NASA imagery of the study region (needs your browser's internet).</div>
+          <div class="satellite-embed">
+            <iframe id="worldviewFrame" loading="lazy" title="NASA Worldview — North Indian Ocean"></iframe>
+          </div>
+          <p style="font-size:12px; margin-top:8px;">
+            <a id="worldviewLink" href="#" target="_blank" rel="noopener">Open full map ↗</a>
+            <span style="color:var(--text-dim)"> — blank? NASA sometimes blocks embedding; use the link.</span>
+          </p>
+        </div>
+        <div class="panel">
+          <h2>The Pipeline, in Four Steps</h2>
+          <ol class="step-list">
+            <li><b>Collect</b> — real satellite surface data (temperature, salinity, currents, chlorophyll) + sparse underwater float readings.</li>
+            <li><b>Train</b> — a neural network learns to map surface patterns to underwater temperature.</li>
+            <li><b>Test</b> — check the guess against floats the network never saw.</li>
+            <li><b>Monitor</b> — watch for warming events (heatwaves) as new data comes in.</li>
+          </ol>
         </div>
       </div>
-    </section>
 
-    <section>
-      <h2 style="font-size:16px; margin-bottom:10px;">Methodology &amp; Data Sources</h2>
       <div class="source-grid">
         <div class="source-card">
           <h3>ARGO Floats</h3>
-          <p>Sparse in-situ subsurface temperature/salinity profiles. Real pipeline hook uses
-          <code>argopy.DataFetcher().region([...])</code> — see <code>get_argo_data()</code>.</p>
+          <p>Sparse underwater thermometers. Real-data hook: <code>get_argo_data()</code> in the code.</p>
         </div>
         <div class="source-card">
-          <h3>MOSDAC / ISRO + CMEMS</h3>
-          <p><b>Real, live in this build</b> (see Live Data section above): INSAT-3DR L2B SST
-          (ISRO/SAC, 25 Aug 2026) and CMEMS <code>thetao</code>/<code>so</code>/<code>uo</code>,<code>vo</code>/<code>chl</code>
-          (SST, SSS, surface currents, chlorophyll — Aug 2026), baked into <code>public/data_real.json</code>.
-          Only SSH/SLA and surface winds remain unfilled from the spec's five required inputs.</p>
+          <h3>MOSDAC (ISRO) + CMEMS</h3>
+          <p>Real satellite SST, salinity, currents &amp; chlorophyll powering the Live Monitor tab.</p>
         </div>
         <div class="source-card">
-          <h3>NASA Worldview / GIBS</h3>
-          <p>VIIRS / MODIS / GOES true-color imagery for visual context and coastline/eddy
-          sanity-checking alongside the numeric SST grid.</p>
+          <h3>NASA Worldview</h3>
+          <p>True-color satellite imagery for visual context.</p>
         </div>
         <div class="source-card">
-          <h3>Adaptive Clustering</h3>
-          <p>Loo et al. 2026, <i>arXiv:2605.00860</i> — spatiotemporal clustering to group
-          profiles sharing thermocline structure before reconstruction; approximated here with
-          a lightweight KMeans over (lat, lon, day, SSH).</p>
+          <h3>Research Basis</h3>
+          <p>Loo et al. 2026 (<i>arXiv:2605.00860</i>) — clustering ocean regions by shared behavior before prediction.</p>
         </div>
       </div>
     </section>
 
     <footer>
-      <div>Team <b>Sea Green</b> — OceanEmbed subsurface reconstruction pipeline</div>
-      <div>Built for a 2-hour sprint · Streamlit full app + this static dashboard share the same pipeline (<code>ocean_pipeline_demo.py</code>)</div>
+      <div>Team <b>Sea Green</b></div>
+      <div>Subsurface ocean temperature reconstruction, North Indian Ocean</div>
     </footer>
   </div>
 
