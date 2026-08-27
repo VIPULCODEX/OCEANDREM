@@ -37,6 +37,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error
 
 # Marine heatwave thresholds (deg C SST anomaly above local climatology),
@@ -233,16 +234,28 @@ def spatiotemporal_clusters(df, n_clusters=N_CLUSTERS, fit_on=None):
     Returns integer cluster labels; pass `fit_on` to reuse a fitted model's
     cluster space when labeling a different set of points (e.g. a grid).
     """
+    # Feature weights applied *after* z-scoring. `day` is deliberately
+    # downweighted: a map "frame" is always a single fixed day, so day
+    # contributes a per-cluster *constant* to every point's distance in
+    # that frame -- at full weight this constant swamps the real lat/lon/
+    # ssh signal and makes single-day snapshots degenerate (observed:
+    # only 3-4 of 6 clusters ever appearing on a given day, split like
+    # 1118 vs. 11 points). 0.3 keeps a mild temporal-regime influence
+    # (profiles from similar times can still end up in the same cluster
+    # when position/ssh are ambiguous) without letting it dominate.
+    FEATURE_WEIGHTS = {"lat": 1.0, "lon": 1.0, "day": 0.3, "ssh": 1.0}
+
     feats = df[["lat", "lon", "day", "ssh"]].copy()
-    feats["lat"] = (feats["lat"] - LAT_RANGE[0]) / (LAT_RANGE[1] - LAT_RANGE[0])
-    feats["lon"] = (feats["lon"] - LON_RANGE[0]) / (LON_RANGE[1] - LON_RANGE[0])
-    feats["day"] = feats["day"] / N_DAYS
     if fit_on is None:
+        scaler = StandardScaler()
+        feats_scaled = scaler.fit_transform(feats) * list(FEATURE_WEIGHTS.values())
         km = KMeans(n_clusters=n_clusters, random_state=RANDOM_SEED, n_init=10)
-        labels = km.fit_predict(feats)
-        return labels, km
+        labels = km.fit_predict(feats_scaled)
+        return labels, (scaler, km)
     else:
-        return fit_on.predict(feats)
+        scaler, km = fit_on
+        feats_scaled = scaler.transform(feats) * list(FEATURE_WEIGHTS.values())
+        return km.predict(feats_scaled)
 
 
 def build_training_table():
