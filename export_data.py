@@ -18,7 +18,7 @@ from ocean_pipeline_demo import (
     get_satellite_grid, build_training_table, train_and_evaluate,
     marine_heatwave_series, spatiotemporal_clusters,
 )
-from dl_pipeline import train_pooled_ffnn_and_evaluate
+from dl_pipeline import train_pooled_ffnn_and_evaluate, train_cnn_and_evaluate, train_lstm_and_evaluate
 
 GRID_SAMPLE_STEP_DAYS = 3   # animate through every 3rd day (30 frames)
 GRID_POINT_STRIDE = 2       # coarsen the lat/lon grid for export payload size
@@ -32,11 +32,17 @@ def main():
     print("Building training table...")
     X, Y, argo = build_training_table()
 
-    print("Training Random Forest (baseline comparison model)...")
+    print("Training Random Forest (classical ML baseline)...")
     _, _, _, rf_preds, rf_metrics = train_and_evaluate(X, Y)
 
     print("Training FFNN (headline model -- beat RF at N=600, see PROJECT_REPORT.txt)...")
     model, X_test, Y_test, preds, metrics = train_pooled_ffnn_and_evaluate(X, Y)
+
+    print("Training CNN (on real satellite-grid patches, not flattened features)...")
+    _, _, _, cnn_preds, cnn_metrics = train_cnn_and_evaluate(X, Y)
+
+    print("Training LSTM (depth-sequence decoder)...")
+    _, _, _, lstm_preds, lstm_metrics = train_lstm_and_evaluate(X, Y)
 
     print("Computing marine heatwave series...")
     heatwave = marine_heatwave_series()
@@ -79,16 +85,30 @@ def main():
         })
 
     rf_rmse_by_depth = dict(zip(rf_metrics["depth"], rf_metrics["rmse_model"]))
+    cnn_rmse_by_depth = dict(zip(cnn_metrics["depth"], cnn_metrics["rmse_model"]))
+    lstm_rmse_by_depth = dict(zip(lstm_metrics["depth"], lstm_metrics["rmse_model"]))
     metrics_out = [
         {
             "depth": int(row["depth"].replace("temp_", "").replace("m", "")),
             "rmse_model": round(float(row["rmse_model"]), 4),
             "rmse_rf": round(float(rf_rmse_by_depth[row["depth"]]), 4),
+            "rmse_cnn": round(float(cnn_rmse_by_depth[row["depth"]]), 4),
+            "rmse_lstm": round(float(lstm_rmse_by_depth[row["depth"]]), 4),
             "rmse_baseline": round(float(row["rmse_baseline"]), 4),
             "correlation": round(float(row["correlation"]), 4),
             "bias": round(float(row["bias"]), 4),
         }
         for _, row in metrics.iterrows()
+    ]
+
+    # Compact per-model summary for the Results tab's overview chart --
+    # every architecture we actually trained and tested, same test set.
+    model_summary = [
+        {"name": "Naive guess", "avg_rmse": round(float(rf_metrics["rmse_baseline"].mean()), 4), "avg_correlation": None},
+        {"name": "Random Forest", "avg_rmse": round(float(rf_metrics["rmse_model"].mean()), 4), "avg_correlation": round(float(rf_metrics["correlation"].mean()), 4)},
+        {"name": "CNN (satellite patches)", "avg_rmse": round(float(cnn_metrics["rmse_model"].mean()), 4), "avg_correlation": round(float(cnn_metrics["correlation"].mean()), 4)},
+        {"name": "LSTM (depth decoder)", "avg_rmse": round(float(lstm_metrics["rmse_model"].mean()), 4), "avg_correlation": round(float(lstm_metrics["correlation"].mean()), 4)},
+        {"name": "FFNN (headline)", "avg_rmse": round(float(metrics["rmse_model"].mean()), 4), "avg_correlation": round(float(metrics["correlation"].mean()), 4)},
     ]
 
     heatwave_out = [
@@ -127,6 +147,7 @@ def main():
         "grids": grids,
         "argo_test": argo_test,
         "metrics": metrics_out,
+        "model_summary": model_summary,
     }
 
     out_path = "public/data.json"

@@ -14,15 +14,32 @@ The dashboard (`public/`) is organized as four tabs: **Live Monitor** (real curr
 > real multi-depth Argo/subsurface pull wasn't available for this build. Real-data
 > hooks for that half are already wired in `ocean_pipeline_demo.py`.
 
-## The model
+## The models
 
-`dl_pipeline.py` trains a small feedforward neural network (FFNN, PyTorch) on the
-synthetic Argo dataset and is the model actually shown in the dashboard — it beat
-the original Random Forest baseline once the synthetic profile count was raised
-from 220 to 600 (not enough data was the reason the FFNN initially lost). Both are
-trained on the *identical* time-based train/test split (`time_based_split()` in
-`ocean_pipeline_demo.py`) for a fair comparison; all three (naive baseline,
-Random Forest, FFNN) are shown side by side in the dashboard's Results tab.
+`dl_pipeline.py` trains **four independent models** on the synthetic Argo dataset,
+all on the *identical* time-based train/test split (`time_based_split()` in
+`ocean_pipeline_demo.py`) for a fair comparison — all four (plus a naive baseline)
+are shown side by side in the dashboard's Results tab:
+
+| Model | Type | Input | Mean RMSE | vs. baseline |
+|---|---|---|---|---|
+| Naive guess | — | — | ~0.71°C | — |
+| Random Forest | classical ML | flat features | ~0.33°C | -53% |
+| **FFNN** (headline) | neural net | flat features | ~0.33°C | -54% |
+| CNN | neural net | real 5×5 satellite-grid patch → pooled embedding | ~0.35°C | -51% |
+| LSTM | neural net | depth-sequence decoder | ~0.36-0.40°C | -46-49% |
+
+(Exact CNN/LSTM figures vary slightly run to run — a known PyTorch/cuDNN GPU
+non-determinism quirk in Conv2d/LSTM kernels, not a bug; the ordering is stable.)
+
+FFNN wins and is the model shown in the profile explorer / scatter panels; it beat
+Random Forest once the synthetic profile count was raised from 220 to 600 (not
+enough data was the reason the FFNN initially lost — verified empirically). The
+CNN is the closest thing in this repo to the "satellite embeddings" the problem
+statement asks for: it pools a real spatial patch of the surface grid into a
+compact latent vector before predicting, rather than using flattened point
+features directly. See `PROJECT_REPORT.txt` §4 for full architecture detail on
+all three neural nets and why CNN/LSTM come in behind FFNN on this synthetic data.
 
 We also tried to replicate the *actual* headline method from Loo et al. 2026
 (arXiv:2605.00860) — cluster by depth-band and time-phase, then train a separate

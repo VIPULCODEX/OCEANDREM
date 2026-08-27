@@ -57,6 +57,7 @@ function setupTabs() {
   function showTab(name) {
     buttons.forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
     panels.forEach((p) => p.classList.toggle("active", p.dataset.tab === name));
+    positionLiquidIndicator();
     // Plotly charts drawn while their tab was hidden render at zero width;
     // a resize event after the panel becomes visible fixes them (all our
     // charts use responsive:true, which listens for this).
@@ -70,6 +71,21 @@ function setupTabs() {
       showTab(el.dataset.tabLink);
     });
   });
+
+  positionLiquidIndicator();
+  window.addEventListener("resize", positionLiquidIndicator);
+}
+
+function positionLiquidIndicator() {
+  const nav = document.getElementById("bottomNav");
+  const indicator = document.getElementById("liquidIndicator");
+  if (!nav || !indicator) return;
+  const active = nav.querySelector(".bottom-tab-btn.active");
+  if (!active) return;
+  // Position relative to the nav's own padding box, so this works whether
+  // the nav is visible or not (mobile-only; harmless to compute either way).
+  indicator.style.left = `${active.offsetLeft}px`;
+  indicator.style.width = `${active.offsetWidth}px`;
 }
 
 function drawClaimBanner() {
@@ -252,18 +268,28 @@ function populateSelectors() {
 }
 
 function drawStatic() {
-  // RMSE bar chart (static across the whole session) -- three-way comparison
+  drawModelSummary();
+
+  // Per-depth comparison as LINES, not grouped bars -- five series as bars
+  // would be an unreadable wall of color; lines make "which one is lowest
+  // at which depth" actually legible.
   const depths = DATA.metrics.map((m) => `${m.depth}m`);
-  const modelName = DATA.meta.model_name || "Model";
-  const baselineName = DATA.meta.baseline_model_name || "Random Forest";
+  const series = [
+    { key: "rmse_baseline", name: "Naive guess", color: "#5c7d76", dash: "dot" },
+    { key: "rmse_rf", name: "Random Forest", color: "#9a7fd1", dash: "dash" },
+    { key: "rmse_cnn", name: "CNN", color: "#e58a3a", dash: "dash" },
+    { key: "rmse_lstm", name: "LSTM", color: "#e2543f", dash: "dash" },
+    { key: "rmse_model", name: DATA.meta.model_name || "FFNN", color: "#3fcf8e", dash: "solid" },
+  ];
   Plotly.newPlot(
     "rmseChart",
-    [
-      { x: depths, y: DATA.metrics.map((m) => m.rmse_baseline), name: "Naive guess", type: "bar", marker: { color: "#5c7d76" } },
-      { x: depths, y: DATA.metrics.map((m) => m.rmse_rf), name: baselineName, type: "bar", marker: { color: "#4fa3e3" } },
-      { x: depths, y: DATA.metrics.map((m) => m.rmse_model), name: modelName, type: "bar", marker: { color: "#3fcf8e" } },
-    ],
-    { ...PLOTLY_DARK, barmode: "group", legend: { orientation: "h", y: -0.25 }, yaxis: { title: "RMSE (°C)", gridcolor: "#1c4a41" }, xaxis: { title: "Depth" } },
+    series.map((s) => ({
+      x: depths, y: DATA.metrics.map((m) => m[s.key]),
+      mode: "lines+markers", name: s.name,
+      line: { color: s.color, width: s.key === "rmse_model" ? 3 : 1.5, dash: s.dash },
+      marker: { size: 5 },
+    })),
+    { ...PLOTLY_DARK, legend: { orientation: "h", y: -0.3 }, yaxis: { title: "RMSE (°C)", gridcolor: "#1c4a41" }, xaxis: { title: "Depth" } },
     { displayModeBar: false, responsive: true }
   );
 
@@ -297,6 +323,25 @@ function drawStatic() {
   drawProfile();
 }
 
+function drawModelSummary() {
+  const summary = DATA.model_summary;
+  if (!summary) return;
+  const best = Math.min(...summary.map((m) => m.avg_rmse));
+  Plotly.newPlot(
+    "modelSummaryChart",
+    [{
+      x: summary.map((m) => m.name), y: summary.map((m) => m.avg_rmse),
+      type: "bar",
+      marker: { color: summary.map((m) => (m.avg_rmse === best ? "#3fcf8e" : "#4fa3e3")) },
+      text: summary.map((m) => m.avg_rmse.toFixed(3)),
+      textposition: "outside",
+      hovertemplate: "%{x}<br>mean RMSE %{y:.3f}°C<extra></extra>",
+    }],
+    { ...PLOTLY_DARK, yaxis: { title: "Mean RMSE (°C), lower = better", gridcolor: "#1c4a41" }, xaxis: { tickangle: -15 }, showlegend: false },
+    { displayModeBar: false, responsive: true }
+  );
+}
+
 function drawMetricsTable() {
   const modelName = DATA.meta.model_name || "Model";
   const baselineName = DATA.meta.baseline_model_name || "Random Forest";
@@ -305,12 +350,14 @@ function drawMetricsTable() {
       <td>${m.depth} m</td>
       <td>${m.rmse_baseline.toFixed(3)}</td>
       <td>${m.rmse_rf.toFixed(3)}</td>
-      <td>${m.rmse_model.toFixed(3)}</td>
+      <td>${m.rmse_cnn.toFixed(3)}</td>
+      <td>${m.rmse_lstm.toFixed(3)}</td>
+      <td><b>${m.rmse_model.toFixed(3)}</b></td>
       <td>${m.correlation.toFixed(3)}</td>
       <td>${m.bias >= 0 ? "+" : ""}${m.bias.toFixed(3)}</td>
     </tr>`).join("");
   document.getElementById("metricsTable").innerHTML = `
-    <thead><tr><th>Depth</th><th>Naive guess</th><th>${baselineName}</th><th>${modelName}</th><th>Correlation</th><th>Bias</th></tr></thead>
+    <thead><tr><th>Depth</th><th>Naive guess</th><th>${baselineName}</th><th>CNN</th><th>LSTM</th><th>${modelName}</th><th>Correlation</th><th>Bias</th></tr></thead>
     <tbody>${rows}</tbody>`;
 }
 

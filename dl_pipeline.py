@@ -41,13 +41,16 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error
 
 from ocean_pipeline_demo import (
-    DEPTH_LEVELS, RANDOM_SEED, build_training_table, train_and_evaluate,
+    DEPTH_LEVELS, LAT_RANGE, LON_RANGE, GRID_STEP, RANDOM_SEED,
+    build_training_table, train_and_evaluate, get_satellite_grid,
     time_based_split, marine_heatwave_series,
 )
 
 torch.manual_seed(RANDOM_SEED)
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 FEATURE_COLS = ["lat", "lon", "day", "sst", "ssh", "sss", "wind"]
+PATCH_CHANNELS = ["sst", "ssh", "sss", "wind"]
+PATCH_HALF = 2  # 5x5 patch
 N_VERTICAL_CLUSTERS = 3
 
 
@@ -108,6 +111,7 @@ class FFNN(nn.Module):
 
 def train_ffnn(X, Y, epochs=300, lr=1e-2, weight_decay=1e-4):
     """Trains one FFNN. X, Y are already-scaled numpy arrays."""
+    torch.manual_seed(RANDOM_SEED)  # deterministic regardless of what trained before this call
     model = FFNN(X.shape[1], Y.shape[1]).to(DEVICE)
     opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     sched = torch.optim.lr_scheduler.StepLR(opt, step_size=max(epochs // 3, 1), gamma=0.3)
@@ -133,6 +137,26 @@ def predict_ffnn(model, X):
     return model(xt).cpu().numpy()
 
 
+def _metrics_frame(Y_train, Y_test, preds):
+    """Shared metrics computation (RMSE/baseline/correlation/bias per depth),
+    used identically by every model below so their outputs are directly
+    comparable -- same formula, same baseline, same test rows."""
+    baseline = pd.DataFrame(
+        np.tile(Y_train.mean().values, (len(Y_test), 1)), columns=Y_test.columns, index=Y_test.index
+    )
+    results = []
+    for col in Y_test.columns:
+        rmse_model = mean_squared_error(Y_test[col], preds[col]) ** 0.5
+        rmse_base = mean_squared_error(Y_test[col], baseline[col]) ** 0.5
+        corr = np.corrcoef(Y_test[col], preds[col])[0, 1]
+        bias = float((preds[col] - Y_test[col]).mean())
+        results.append({
+            "depth": col, "rmse_model": rmse_model, "rmse_baseline": rmse_base,
+            "correlation": corr, "bias": bias,
+        })
+    return pd.DataFrame(results)
+
+
 def train_pooled_ffnn_and_evaluate(X, Y):
     """
     Same interface/return shape as ocean_pipeline_demo.train_and_evaluate(),
@@ -155,22 +179,168 @@ def train_pooled_ffnn_and_evaluate(X, Y):
     raw_preds = y_scaler.inverse_transform(predict_ffnn(model, x_scaler.transform(X_test[FEATURE_COLS]).astype(np.float32)))
     preds = pd.DataFrame(raw_preds, columns=Y_test.columns, index=Y_test.index)
 
-    baseline = pd.DataFrame(
-        np.tile(Y_train.mean().values, (len(Y_test), 1)), columns=Y_test.columns, index=Y_test.index
+    return model, X_test, Y_test, preds, _metrics_frame(Y_train, Y_test, preds)
+
+
+# ----------------------------------------------------------------------
+# 3b. CNN -- operates on a real spatial patch of the satellite grid
+#     (not flattened tabular features), the closest thing in this repo to
+#     the "satellite embeddings" the problem statement actually asks for.
+# ----------------------------------------------------------------------
+class PatchCNN(nn.Module):
+    """Small conv net over a (channels, patch, patch) satellite image patch,
+    with the scalar `day` feature concatenated in after pooling (day isn't
+    spatial, so it doesn't belong inside the convolution)."""
+
+    def __init__(self, in_channels, out_dim, hidden=32):
+        super().__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels, 16, kernel_size=3, padding=1), nn.ReLU(),
+            nn.Conv2d(16, hidden, kernel_size=3, padding=1), nn.ReLU(),
+            nn.AdaptiveAvgPool2d(1),
+        )
+        self.head = nn.Sequential(
+            nn.Linear(hidden + 1, hidden), nn.ReLU(),
+            nn.Linear(hidden, out_dim),
+        )
+
+    def forward(self, patch, day_scalar):
+        embedding = self.conv(patch).flatten(1)          # (batch, hidden) -- the "satellite embedding"
+        return self.head(torch.cat([embedding, day_scalar], dim=1))
+
+
+def _day_grid_arrays(day, _cache={}):
+    """2D (lat x lon) arrays per channel for one day's satellite grid,
+    cached since many profiles share the same day."""
+    if day not in _cache:
+        g = get_satellite_grid(day)
+        lats = np.arange(LAT_RANGE[0], LAT_RANGE[1] + GRID_STEP, GRID_STEP)
+        lons = np.arange(LON_RANGE[0], LON_RANGE[1] + GRID_STEP, GRID_STEP)
+        arrays = {ch: g[ch].values.reshape(len(lats), len(lons)) for ch in PATCH_CHANNELS}
+        _cache[day] = (lats, lons, arrays)
+    return _cache[day]
+
+
+def extract_patch(lat, lon, day, half=PATCH_HALF):
+    """(len(PATCH_CHANNELS), 2*half+1, 2*half+1) patch of the satellite grid
+    centered on the nearest grid cell to (lat, lon), for the given day.
+    Edge profiles get edge-replicated padding so every patch is the same
+    fixed size."""
+    lats, lons, arrays = _day_grid_arrays(int(day))
+    i = int(np.argmin(np.abs(lats - lat)))
+    j = int(np.argmin(np.abs(lons - lon)))
+    ii = np.clip(np.arange(i - half, i + half + 1), 0, len(lats) - 1)
+    jj = np.clip(np.arange(j - half, j + half + 1), 0, len(lons) - 1)
+    return np.stack([arrays[ch][np.ix_(ii, jj)] for ch in PATCH_CHANNELS])
+
+
+def train_cnn_and_evaluate(X, Y, epochs=300, lr=1e-2):
+    """Same interface as train_pooled_ffnn_and_evaluate(). Builds a real
+    spatial patch per profile (see extract_patch) instead of using the
+    flattened surface features directly."""
+    torch.manual_seed(RANDOM_SEED)
+    X_train, X_test, Y_train, Y_test = time_based_split(X, Y)
+
+    def build_patches(df):
+        return np.stack([extract_patch(r.lat, r.lon, r.day) for r in df.itertuples()]).astype(np.float32)
+
+    patch_train, patch_test = build_patches(X_train), build_patches(X_test)
+    # normalize each channel using training-set stats
+    ch_mean = patch_train.mean(axis=(0, 2, 3), keepdims=True)
+    ch_std = patch_train.std(axis=(0, 2, 3), keepdims=True) + 1e-6
+    patch_train = (patch_train - ch_mean) / ch_std
+    patch_test = (patch_test - ch_mean) / ch_std
+
+    day_scaler = StandardScaler().fit(X_train[["day"]])
+    day_train = day_scaler.transform(X_train[["day"]]).astype(np.float32)
+    day_test = day_scaler.transform(X_test[["day"]]).astype(np.float32)
+
+    y_scaler = StandardScaler().fit(Y_train)
+    y_train = y_scaler.transform(Y_train).astype(np.float32)
+
+    model = PatchCNN(in_channels=len(PATCH_CHANNELS), out_dim=Y.shape[1]).to(DEVICE)
+    opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
+    sched = torch.optim.lr_scheduler.StepLR(opt, step_size=max(epochs // 3, 1), gamma=0.3)
+    loss_fn = nn.MSELoss()
+
+    pt = torch.tensor(patch_train, device=DEVICE)
+    dt = torch.tensor(day_train, device=DEVICE)
+    yt = torch.tensor(y_train, device=DEVICE)
+
+    model.train()
+    for _ in range(epochs):
+        opt.zero_grad()
+        loss = loss_fn(model(pt, dt), yt)
+        loss.backward()
+        opt.step()
+        sched.step()
+
+    model.eval()
+    with torch.no_grad():
+        raw_preds = model(torch.tensor(patch_test, device=DEVICE), torch.tensor(day_test, device=DEVICE)).cpu().numpy()
+    preds = pd.DataFrame(y_scaler.inverse_transform(raw_preds), columns=Y_test.columns, index=Y_test.index)
+
+    return model, X_test, Y_test, preds, _metrics_frame(Y_train, Y_test, preds)
+
+
+# ----------------------------------------------------------------------
+# 3c. LSTM -- decodes the 15-depth profile as a sequence, one step per
+#     depth, conditioned on the encoded surface features + which depth
+#     the current step is predicting.
+# ----------------------------------------------------------------------
+class LSTMDecoder(nn.Module):
+    def __init__(self, in_dim, n_steps, hidden=32):
+        super().__init__()
+        self.n_steps = n_steps
+        self.encoder = nn.Sequential(nn.Linear(in_dim, hidden), nn.ReLU())
+        self.lstm = nn.LSTM(input_size=hidden + 1, hidden_size=hidden, batch_first=True)
+        self.head = nn.Linear(hidden, 1)
+
+    def forward(self, x, depth_embed):
+        enc = self.encoder(x)                                    # (batch, hidden)
+        enc_rep = enc.unsqueeze(1).repeat(1, self.n_steps, 1)     # (batch, steps, hidden)
+        depth_rep = depth_embed.view(1, self.n_steps, 1).repeat(x.shape[0], 1, 1)
+        out, _ = self.lstm(torch.cat([enc_rep, depth_rep], dim=-1))
+        return self.head(out).squeeze(-1)                         # (batch, steps)
+
+
+def train_lstm_and_evaluate(X, Y, epochs=300, lr=1e-2):
+    """Same interface as train_pooled_ffnn_and_evaluate()."""
+    torch.manual_seed(RANDOM_SEED)
+    X_train, X_test, Y_train, Y_test = time_based_split(X, Y)
+
+    x_scaler = StandardScaler().fit(X_train[FEATURE_COLS])
+    y_scaler = StandardScaler().fit(Y_train)
+    x_train = x_scaler.transform(X_train[FEATURE_COLS]).astype(np.float32)
+    x_test = x_scaler.transform(X_test[FEATURE_COLS]).astype(np.float32)
+    y_train = y_scaler.transform(Y_train).astype(np.float32)
+
+    depth_embed = torch.tensor(
+        (np.array(DEPTH_LEVELS) / max(DEPTH_LEVELS)).astype(np.float32), device=DEVICE
     )
 
-    results = []
-    for col in Y_test.columns:
-        rmse_model = mean_squared_error(Y_test[col], preds[col]) ** 0.5
-        rmse_base = mean_squared_error(Y_test[col], baseline[col]) ** 0.5
-        corr = np.corrcoef(Y_test[col], preds[col])[0, 1]
-        bias = float((preds[col] - Y_test[col]).mean())
-        results.append({
-            "depth": col, "rmse_model": rmse_model, "rmse_baseline": rmse_base,
-            "correlation": corr, "bias": bias,
-        })
+    model = LSTMDecoder(in_dim=len(FEATURE_COLS), n_steps=len(DEPTH_LEVELS)).to(DEVICE)
+    opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
+    sched = torch.optim.lr_scheduler.StepLR(opt, step_size=max(epochs // 3, 1), gamma=0.3)
+    loss_fn = nn.MSELoss()
 
-    return model, X_test, Y_test, preds, pd.DataFrame(results)
+    xt = torch.tensor(x_train, device=DEVICE)
+    yt = torch.tensor(y_train, device=DEVICE)
+
+    model.train()
+    for _ in range(epochs):
+        opt.zero_grad()
+        loss = loss_fn(model(xt, depth_embed), yt)
+        loss.backward()
+        opt.step()
+        sched.step()
+
+    model.eval()
+    with torch.no_grad():
+        raw_preds = model(torch.tensor(x_test, device=DEVICE), depth_embed).cpu().numpy()
+    preds = pd.DataFrame(y_scaler.inverse_transform(raw_preds), columns=Y_test.columns, index=Y_test.index)
+
+    return model, X_test, Y_test, preds, _metrics_frame(Y_train, Y_test, preds)
 
 
 # ----------------------------------------------------------------------
