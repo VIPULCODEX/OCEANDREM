@@ -296,7 +296,6 @@ function populateSelectors() {
   const wv = `https://worldview.earthdata.nasa.gov/?v=${lo - 3},${latlo - 3},${hi + 3},${lathi + 3}` +
     `&l=Reference_Labels_15m(hidden),Coastlines_15m,VIIRS_NOAA20_CorrectedReflectance_TrueColor` +
     `&lg=true`;
-  document.getElementById("worldviewFrame").src = wv;
   document.getElementById("worldviewLink").href = wv;
 }
 
