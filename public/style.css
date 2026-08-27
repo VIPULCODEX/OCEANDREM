@@ -181,15 +181,46 @@ button.ctrl:hover { border-color: var(--sea-bright); }
   gap: 2px;
   padding: 6px;
   border-radius: 999px;
-  background: rgba(15, 50, 45, 0.6);
-  backdrop-filter: blur(18px) saturate(1.4);
-  -webkit-backdrop-filter: blur(18px) saturate(1.4);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  /* layered gradients instead of a flat fill -- gives the panel itself a
+     glassy sheen (brighter along the top edge, like light catching a
+     curved glass surface) on top of the blur */
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0) 40%),
+    rgba(15, 50, 45, 0.55);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+    0 12px 32px rgba(0, 0, 0, 0.45);
   z-index: 50;
 }
 
+/* The morphing "liquid" pill -- a single absolutely-positioned blob that
+   slides + resizes to sit behind whichever icon is active, instead of each
+   button just swapping its own background. JS (positionLiquidIndicator in
+   app.js) sets its left/width on tab change and on resize. */
+.liquid-indicator {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 6px;
+  width: 56px;
+  border-radius: 999px;
+  background: linear-gradient(160deg, var(--sea-bright), var(--sea));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 0 20px rgba(63, 207, 142, 0.6);
+  transition: left 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+              width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 0;
+  pointer-events: none;
+}
+
 .bottom-tab-btn {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -202,16 +233,17 @@ button.ctrl:hover { border-color: var(--sea-bright); }
   background: transparent;
   border: none;
   cursor: pointer;
-  transition: background 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
-              color 0.25s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: color 0.3s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.bottom-tab-btn .icon { font-size: 18px; line-height: 1; }
-.bottom-tab-btn.active {
-  color: var(--bg);
-  background: var(--sea-bright);
-  box-shadow: 0 0 18px rgba(63, 207, 142, 0.55);
-  transform: translateY(-3px);
+.bottom-tab-btn .icon {
+  font-size: 18px;
+  line-height: 1;
+  display: inline-block;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+.bottom-tab-btn.active { color: var(--bg); transform: translateY(-2px); }
+.bottom-tab-btn.active .icon { transform: scale(1.15); }
+.bottom-tab-btn:active .icon { transform: scale(0.85); }
 
 .tab-intro {
   font-size: 13px;

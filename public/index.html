@@ -38,6 +38,7 @@
 
     <!-- Mobile-only glass bottom nav (shown <=640px instead of the tab strip above) -->
     <nav class="bottom-nav" id="bottomNav">
+      <span class="liquid-indicator" id="liquidIndicator"></span>
       <button class="tab-btn bottom-tab-btn active" data-tab="live"><span class="icon">📡</span>Live</button>
       <button class="tab-btn bottom-tab-btn" data-tab="model"><span class="icon">🧠</span>Model</button>
       <button class="tab-btn bottom-tab-btn" data-tab="results"><span class="icon">📊</span>Results</button>
@@ -171,10 +172,16 @@
         </div>
       </div>
 
+      <div class="panel">
+        <h2>Which Model Wins?</h2>
+        <div class="desc">We trained four independent approaches (one classical, three different neural-network designs) on the exact same test data. Shorter bar = less error.</div>
+        <div id="modelSummaryChart" class="chart chart-md"></div>
+      </div>
+
       <div class="grid-3">
         <div class="panel">
           <h2>Error by Depth</h2>
-          <div class="desc">Lower bars = better. Three approaches, same test data.</div>
+          <div class="desc">Same comparison, broken down by depth. Lower line = better.</div>
           <div id="rmseChart" class="chart chart-md"></div>
           <div class="table-scroll">
             <table class="metrics-table" id="metricsTable"></table>

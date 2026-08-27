@@ -27,7 +27,7 @@ from ocean_pipeline_demo import (
     train_and_evaluate,
     marine_heatwave_series,
 )
-from dl_pipeline import train_pooled_ffnn_and_evaluate
+from dl_pipeline import train_pooled_ffnn_and_evaluate, train_cnn_and_evaluate, train_lstm_and_evaluate
 
 st.set_page_config(page_title="Sea Green | OceanEmbed", layout="wide", page_icon="🌊")
 
@@ -35,18 +35,30 @@ st.set_page_config(page_title="Sea Green | OceanEmbed", layout="wide", page_icon
 # CACHED WRAPPERS around the existing pipeline (so tabs don't retrain
 # the model / regenerate data on every interaction)
 # ----------------------------------------------------------------------
-@st.cache_data(show_spinner="Training Random Forest + FFNN (same test split, for a fair comparison)...")
+@st.cache_data(show_spinner="Training Random Forest + FFNN + CNN + LSTM (same test split, for a fair comparison)...")
 def cached_train():
     X, Y, argo_full = build_training_table()
     _, _, _, _, rf_metrics = train_and_evaluate(X, Y)
-    # FFNN is the headline model (beats RF once N_ARGO_PROFILES >= ~600 --
-    # see PROJECT_REPORT.txt); its predictions drive every chart below.
+    _, _, _, _, cnn_metrics = train_cnn_and_evaluate(X, Y)
+    _, _, _, _, lstm_metrics = train_lstm_and_evaluate(X, Y)
+    # FFNN is the headline model (beats the other three -- see
+    # PROJECT_REPORT.txt); its predictions drive every chart below.
     model, X_test, Y_test, preds, metrics = train_pooled_ffnn_and_evaluate(X, Y)
     metrics = metrics.merge(
-        rf_metrics[["depth", "rmse_model"]].rename(columns={"rmse_model": "rmse_rf"}),
-        on="depth",
+        rf_metrics[["depth", "rmse_model"]].rename(columns={"rmse_model": "rmse_rf"}), on="depth",
+    ).merge(
+        cnn_metrics[["depth", "rmse_model"]].rename(columns={"rmse_model": "rmse_cnn"}), on="depth",
+    ).merge(
+        lstm_metrics[["depth", "rmse_model"]].rename(columns={"rmse_model": "rmse_lstm"}), on="depth",
     )
-    return X_test, Y_test, preds, metrics
+    model_summary = pd.DataFrame([
+        {"name": "Naive guess", "avg_rmse": rf_metrics["rmse_baseline"].mean()},
+        {"name": "Random Forest", "avg_rmse": rf_metrics["rmse_model"].mean()},
+        {"name": "CNN (satellite patches)", "avg_rmse": cnn_metrics["rmse_model"].mean()},
+        {"name": "LSTM (depth decoder)", "avg_rmse": lstm_metrics["rmse_model"].mean()},
+        {"name": "FFNN (headline)", "avg_rmse": metrics["rmse_model"].mean()},
+    ])
+    return X_test, Y_test, preds, metrics, model_summary
 
 
 @st.cache_data(show_spinner="Fetching satellite grid...")
@@ -59,7 +71,7 @@ def cached_heatwave():
     return marine_heatwave_series()
 
 
-X_test, Y_test, preds, metrics = cached_train()
+X_test, Y_test, preds, metrics, model_summary = cached_train()
 heatwave = cached_heatwave()
 
 # ----------------------------------------------------------------------
@@ -189,11 +201,23 @@ with tab1:
 # TAB 2 - MODEL PERFORMANCE
 # ----------------------------------------------------------------------
 with tab2:
-    st.subheader("RMSE per depth: model vs naive baseline")
+    st.subheader("Which model wins?")
+    st.caption("Four independently-trained approaches, same held-out test data. Shorter bar = less error.")
+    fig_summary = px.bar(
+        model_summary, x="name", y="avg_rmse",
+        color=model_summary["avg_rmse"] == model_summary["avg_rmse"].min(),
+        color_discrete_map={True: "#3fcf8e", False: "#4fa3e3"},
+        labels={"name": "", "avg_rmse": "Mean RMSE (&deg;C)"},
+        text=model_summary["avg_rmse"].round(3),
+    )
+    fig_summary.update_layout(showlegend=False, height=350)
+    st.plotly_chart(fig_summary, width="stretch")
+
+    st.subheader("RMSE per depth: all four models vs naive baseline")
 
     metrics_long = metrics.melt(
         id_vars="depth",
-        value_vars=["rmse_baseline", "rmse_rf", "rmse_model"],
+        value_vars=["rmse_baseline", "rmse_rf", "rmse_cnn", "rmse_lstm", "rmse_model"],
         var_name="method",
         value_name="rmse",
     )
@@ -201,22 +225,25 @@ with tab2:
         {
             "rmse_baseline": "Naive baseline (climatology)",
             "rmse_rf": "Random Forest",
-            "rmse_model": "Neural Network (FFNN)",
+            "rmse_cnn": "CNN (satellite patches)",
+            "rmse_lstm": "LSTM (depth decoder)",
+            "rmse_model": "Neural Network (FFNN, headline)",
         }
     )
 
-    fig_bar = px.bar(
+    fig_bar = px.line(
         metrics_long,
-        x="depth", y="rmse", color="method",
-        barmode="group",
+        x="depth", y="rmse", color="method", markers=True,
         color_discrete_map={
             "Naive baseline (climatology)": "#9aa0a6",
-            "Random Forest": "#4fa3e3",
-            "Neural Network (FFNN)": "#2f6fed",
+            "Random Forest": "#9a7fd1",
+            "CNN (satellite patches)": "#e58a3a",
+            "LSTM (depth decoder)": "#e2543f",
+            "Neural Network (FFNN, headline)": "#2f6fed",
         },
         labels={"depth": "Depth", "rmse": "RMSE (&deg;C)", "method": ""},
     )
-    fig_bar.update_layout(legend=dict(orientation="h", y=-0.2), height=450)
+    fig_bar.update_layout(legend=dict(orientation="h", y=-0.3), height=450)
     st.plotly_chart(fig_bar, width="stretch")
 
     st.subheader("Metrics table")
@@ -226,11 +253,16 @@ with tab2:
                 "depth": "Depth",
                 "rmse_baseline": "RMSE - Naive baseline",
                 "rmse_rf": "RMSE - Random Forest",
-                "rmse_model": "RMSE - Neural Network",
+                "rmse_cnn": "RMSE - CNN",
+                "rmse_lstm": "RMSE - LSTM",
+                "rmse_model": "RMSE - FFNN (headline)",
                 "correlation": "Correlation (r)",
                 "bias": "Bias (model - actual)",
             }
-        )[["Depth", "RMSE - Naive baseline", "RMSE - Random Forest", "RMSE - Neural Network", "Correlation (r)", "Bias (model - actual)"]],
+        )[[
+            "Depth", "RMSE - Naive baseline", "RMSE - Random Forest", "RMSE - CNN",
+            "RMSE - LSTM", "RMSE - FFNN (headline)", "Correlation (r)", "Bias (model - actual)",
+        ]],
         width="stretch",
         hide_index=True,
     )
