@@ -1,11 +1,12 @@
 ================================================================================
 !!! READ THIS FIRST -- GIT PUSH IS STILL BLOCKED (last checked 2026-08-27,
-    local HEAD = 5893bc3 "Add GNN (k-NN graph + GCN)...") !!!
+    local HEAD = e502f58 "Genuine 0.25deg regridding for real CMEMS data...") !!!
 
 Everything described in this report IS finished and IS committed locally
-(git log shows it; `git status` is clean up to commit 5893bc3), but
+(git log shows it; `git status` is clean up to commit e502f58), but
 `git push` to both origin (OCEANDREM) and seagreen fails every time it's
-been retried this session with:
+been retried this session (checked repeatedly, including after finishing
+the GNN model and the regridding work) with:
     fatal: could not read Username for 'https://github.com': No such device or address
 The credential store (~/.git-credentials, credential.helper=store) is
 empty -- it was populated earlier in this session but is now 0 bytes, and
