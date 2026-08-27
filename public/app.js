@@ -13,6 +13,16 @@ const PLOTLY_DARK = {
   plot_bgcolor: "rgba(0,0,0,0)",
   font: { color: "#e8f5f0", size: 12 },
   margin: { t: 10, r: 20, l: 50, b: 40 },
+  hovermode: "closest",
+  hoverlabel: { bgcolor: "#0f322d", bordercolor: "#3fcf8e", font: { color: "#e8f5f0", size: 12 } },
+  transition: { duration: 350, easing: "cubic-in-out" },
+};
+
+// Time-series charts get crosshair "spike" lines on both axes so hovering
+// feels like actually reading the chart, not just a static picture.
+const SPIKE_AXIS = {
+  showspikes: true, spikemode: "across", spikesnap: "cursor",
+  spikethickness: 1, spikedash: "dot", spikecolor: "#3fcf8e88",
 };
 
 let DATA = null;
@@ -174,7 +184,7 @@ async function bootReal() {
   const traces = [sstTrace];
   const layout = {
     ...PLOTLY_DARK,
-    xaxis: { title: "Date", gridcolor: "#1c4a41" },
+    xaxis: { title: "Date", gridcolor: "#1c4a41", ...SPIKE_AXIS },
     yaxis: { title: "SST (°C)", gridcolor: "#1c4a41", titlefont: { color: "#3fcf8e" } },
     legend: { orientation: "h", y: -0.25 },
   };
@@ -235,7 +245,7 @@ function drawChlorophyll() {
       mode: "lines+markers", line: { color: "#3fcf8e", width: 2 }, marker: { size: 5 },
       name: "Chlorophyll (mg/m³)",
     }],
-    { ...PLOTLY_DARK, xaxis: { title: "Date", gridcolor: "#1c4a41" }, yaxis: { title: "Chlorophyll (mg/m³)", gridcolor: "#1c4a41" } },
+    { ...PLOTLY_DARK, xaxis: { title: "Date", gridcolor: "#1c4a41", ...SPIKE_AXIS }, yaxis: { title: "Chlorophyll (mg/m³)", gridcolor: "#1c4a41" } },
     { displayModeBar: false, responsive: true }
   );
 }
@@ -340,7 +350,7 @@ function drawStatic() {
       line: { color: s.color, width: s.key === "rmse_model" ? 3 : 1.5, dash: s.dash },
       marker: { size: 5 },
     })),
-    { ...PLOTLY_DARK, legend: { orientation: "h", y: -0.3 }, yaxis: { title: "RMSE (°C)", gridcolor: "#1c4a41" }, xaxis: { title: "Depth" } },
+    { ...PLOTLY_DARK, legend: { orientation: "h", y: -0.3 }, yaxis: { title: "RMSE (°C)", gridcolor: "#1c4a41" }, xaxis: { title: "Depth", ...SPIKE_AXIS } },
     { displayModeBar: false, responsive: true }
   );
 
@@ -365,7 +375,7 @@ function drawStatic() {
       { x: days, y: anomalies, mode: "lines", line: { color: "#3fcf8e", width: 2 }, name: "SST anomaly" },
       { x: [days[0]], y: [anomalies[0]], mode: "markers", marker: { size: 12, color: "#e8f5f0", line: { color: "#3fcf8e", width: 2 } }, name: "Today", showlegend: false },
     ],
-    { ...PLOTLY_DARK, shapes: bands, yaxis: { title: "Anomaly (°C)", range: [-0.5, yMax], gridcolor: "#1c4a41" }, xaxis: { title: "Day of season window" }, showlegend: false },
+    { ...PLOTLY_DARK, shapes: bands, yaxis: { title: "Anomaly (°C)", range: [-0.5, yMax], gridcolor: "#1c4a41" }, xaxis: { title: "Day of season window", ...SPIKE_AXIS }, showlegend: false },
     { displayModeBar: false, responsive: true }
   );
 
@@ -378,12 +388,14 @@ function drawModelSummary() {
   const summary = DATA.model_summary;
   if (!summary) return;
   const best = Math.min(...summary.map((m) => m.avg_rmse));
+  const baseColors = summary.map((m) => (m.avg_rmse === best ? "#3fcf8e" : "#4fa3e3"));
+  const gd = document.getElementById("modelSummaryChart");
   Plotly.newPlot(
-    "modelSummaryChart",
+    gd,
     [{
       x: summary.map((m) => m.name), y: summary.map((m) => m.avg_rmse),
       type: "bar",
-      marker: { color: summary.map((m) => (m.avg_rmse === best ? "#3fcf8e" : "#4fa3e3")) },
+      marker: { color: baseColors, line: { color: "rgba(255,255,255,0)", width: 3 } },
       text: summary.map((m) => m.avg_rmse.toFixed(3)),
       textposition: "outside",
       hovertemplate: "%{x}<br>mean RMSE %{y:.3f}°C<extra></extra>",
@@ -391,6 +403,18 @@ function drawModelSummary() {
     { ...PLOTLY_DARK, yaxis: { title: "Mean RMSE (°C), lower = better", gridcolor: "#1c4a41" }, xaxis: { tickangle: -15 }, showlegend: false },
     { displayModeBar: false, responsive: true }
   );
+  // Hovered bar gets a bright outline so the chart visibly responds to
+  // the cursor instead of sitting there as a flat picture.
+  const n = summary.length;
+  gd.on("plotly_hover", (e) => {
+    const idx = e.points[0].pointIndex;
+    const lineColors = Array(n).fill("rgba(255,255,255,0)");
+    lineColors[idx] = "#e8f5f0";
+    Plotly.restyle(gd, { "marker.line.color": [lineColors] });
+  });
+  gd.on("plotly_unhover", () => {
+    Plotly.restyle(gd, { "marker.line.color": [Array(n).fill("rgba(255,255,255,0)")] });
+  });
 }
 
 function drawMetricsTable() {

@@ -31,9 +31,9 @@
 
     <nav class="tabs" id="tabNav">
       <span class="tab-underline" id="tabUnderline"></span>
-      <button class="tab-btn active" data-tab="live">📡 Live Monitor</button>
-      <button class="tab-btn" data-tab="model">🧠 The Model</button>
-      <button class="tab-btn" data-tab="results">📊 Results</button>
+      <button class="tab-btn active" data-tab="live">📡 Live Monitor <span class="tab-tag real">Real</span></button>
+      <button class="tab-btn" data-tab="model">🧠 The Model <span class="tab-tag sim">Simulated</span></button>
+      <button class="tab-btn" data-tab="results">📊 Results <span class="tab-tag sim">Simulated</span></button>
       <button class="tab-btn" data-tab="how">📖 How it Works</button>
     </nav>
 
@@ -70,12 +70,12 @@
 
       <div class="grid-2">
         <div class="panel">
-          <h2>Sea Temperature &amp; Salinity</h2>
+          <h2><span class="panel-title">Sea Temperature &amp; Salinity <span class="data-badge real">🟢 REAL</span></span></h2>
           <div class="desc">Daily average, real CMEMS data.</div>
           <div id="realTrendChart" class="chart chart-md"></div>
         </div>
         <div class="panel">
-          <h2>Live Satellite Pass
+          <h2><span class="panel-title">Live Satellite Pass <span class="data-badge real">🟢 REAL</span></span>
             <span class="controls" style="gap:6px">
               <button class="ctrl" id="realPlayBtn" style="padding:4px 9px;font-size:12px">⏸</button>
               <span id="realFrameLabel" style="font-size:12px;color:var(--text-dim)">–</span>
@@ -88,12 +88,12 @@
 
       <div class="grid-2">
         <div class="panel">
-          <h2>Ocean Currents</h2>
+          <h2><span class="panel-title">Ocean Currents <span class="data-badge real">🟢 REAL</span></span></h2>
           <div class="desc" id="currentsDesc">Real current speed &amp; direction.</div>
           <div id="currentsChart" class="chart chart-md"></div>
         </div>
         <div class="panel">
-          <h2>Chlorophyll (Ecosystem Health)</h2>
+          <h2><span class="panel-title">Chlorophyll (Ecosystem Health) <span class="data-badge real">🟢 REAL</span></span></h2>
           <div class="desc">A warmer ocean can starve plankton of nutrients — this tracks that effect.</div>
           <div id="chlChart" class="chart chart-md"></div>
         </div>
@@ -126,7 +126,7 @@
 
       <div class="grid-2">
         <div class="panel">
-          <h2>Surface View + Float Locations
+          <h2><span class="panel-title">Surface View + Float Locations <span class="data-badge sim">🔷 SIMULATED</span></span>
             <select id="daySelect"></select>
           </h2>
           <div class="desc">Black × = real float positions (test set). Toggle groups the map into regions with similar underwater behavior.</div>
@@ -136,14 +136,14 @@
           <div id="mapChart" class="chart chart-lg"></div>
         </div>
         <div class="panel">
-          <h2>Heatwave Detector (Test Run)</h2>
+          <h2><span class="panel-title">Heatwave Detector (Test Run) <span class="data-badge sim">🔷 SIMULATED</span></span></h2>
           <div class="desc">A practice warming event, so you can see the alarm actually trip.</div>
           <div id="heatwaveChart" class="chart chart-lg"></div>
         </div>
       </div>
 
       <div class="panel">
-        <h2>Pick a Float — See the Guess vs. Reality
+        <h2><span class="panel-title">Pick a Float — See the Guess vs. Reality <span class="data-badge sim">🔷 SIMULATED</span></span>
           <select id="profileSelect"></select>
         </h2>
         <div class="desc">Solid = what the float actually measured. Dashed = what the model guessed from the surface alone.</div>
@@ -174,14 +174,14 @@
       </div>
 
       <div class="panel">
-        <h2>Which Model Wins?</h2>
+        <h2><span class="panel-title">Which Model Wins? <span class="data-badge sim">🔷 SIMULATED</span></span></h2>
         <div class="desc">We trained seven independent approaches (one classical, six different neural-network designs) on the exact same test data. Shorter bar = less error.</div>
         <div id="modelSummaryChart" class="chart chart-md"></div>
       </div>
 
       <div class="grid-3">
         <div class="panel">
-          <h2>Error by Depth</h2>
+          <h2><span class="panel-title">Error by Depth <span class="data-badge sim">🔷 SIMULATED</span></span></h2>
           <div class="desc">Same comparison, broken down by depth. Lower line = better.</div>
           <div id="rmseChart" class="chart chart-md"></div>
           <div class="table-scroll">
@@ -189,7 +189,7 @@
           </div>
         </div>
         <div class="panel">
-          <h2>Guess vs. Reality
+          <h2><span class="panel-title">Guess vs. Reality <span class="data-badge sim">🔷 SIMULATED</span></span>
             <select id="depthSelect"></select>
           </h2>
           <div class="desc">Every test point. Dots on the line = exact match.</div>
