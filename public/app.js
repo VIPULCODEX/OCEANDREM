@@ -58,10 +58,26 @@ function setupTabs() {
     buttons.forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
     panels.forEach((p) => p.classList.toggle("active", p.dataset.tab === name));
     positionLiquidIndicator();
-    // Plotly charts drawn while their tab was hidden render at zero width;
-    // a resize event after the panel becomes visible fixes them (all our
-    // charts use responsive:true, which listens for this).
-    requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+    // Charts drawn while their tab was hidden (display:none) get a
+    // corrupted axis range -- a plain resize event fixes the pixel size
+    // but NOT the range (that's a known Plotly.js gotcha: autorange
+    // computed against a zero-size container sticks around). Fix: once
+    // the panel is actually visible, resize every plot in it AND force
+    // Plotly to recompute the axis range from the real data (the same
+    // thing the built-in "Autoscale" button does) -- not just a resize.
+    requestAnimationFrame(() => {
+      window.dispatchEvent(new Event("resize"));
+      const activePanel = document.querySelector(`.tab-panel[data-tab="${name}"]`);
+      if (!activePanel) return;
+      activePanel.querySelectorAll(".js-plotly-plot").forEach((gd) => {
+        Plotly.Plots.resize(gd);
+        const update = {};
+        if (gd.layout?.xaxis) update["xaxis.autorange"] = true;
+        if (gd.layout?.yaxis) update["yaxis.autorange"] = true;
+        if (gd.layout?.yaxis2) update["yaxis2.autorange"] = true;
+        Plotly.relayout(gd, update);
+      });
+    });
   }
 
   buttons.forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
