@@ -27,6 +27,7 @@ from ocean_pipeline_demo import (
     train_and_evaluate,
     marine_heatwave_series,
 )
+from dl_pipeline import train_pooled_ffnn_and_evaluate
 
 st.set_page_config(page_title="Sea Green | OceanEmbed", layout="wide", page_icon="🌊")
 
@@ -34,10 +35,17 @@ st.set_page_config(page_title="Sea Green | OceanEmbed", layout="wide", page_icon
 # CACHED WRAPPERS around the existing pipeline (so tabs don't retrain
 # the model / regenerate data on every interaction)
 # ----------------------------------------------------------------------
-@st.cache_data(show_spinner="Building training table + training model...")
+@st.cache_data(show_spinner="Training Random Forest + FFNN (same test split, for a fair comparison)...")
 def cached_train():
     X, Y, argo_full = build_training_table()
-    model, X_test, Y_test, preds, metrics = train_and_evaluate(X, Y)
+    _, _, _, _, rf_metrics = train_and_evaluate(X, Y)
+    # FFNN is the headline model (beats RF once N_ARGO_PROFILES >= ~600 --
+    # see PROJECT_REPORT.txt); its predictions drive every chart below.
+    model, X_test, Y_test, preds, metrics = train_pooled_ffnn_and_evaluate(X, Y)
+    metrics = metrics.merge(
+        rf_metrics[["depth", "rmse_model"]].rename(columns={"rmse_model": "rmse_rf"}),
+        on="depth",
+    )
     return X_test, Y_test, preds, metrics
 
 
@@ -185,12 +193,16 @@ with tab2:
 
     metrics_long = metrics.melt(
         id_vars="depth",
-        value_vars=["rmse_baseline", "rmse_model"],
+        value_vars=["rmse_baseline", "rmse_rf", "rmse_model"],
         var_name="method",
         value_name="rmse",
     )
     metrics_long["method"] = metrics_long["method"].map(
-        {"rmse_baseline": "Naive baseline (climatology)", "rmse_model": "Model (Random Forest)"}
+        {
+            "rmse_baseline": "Naive baseline (climatology)",
+            "rmse_rf": "Random Forest",
+            "rmse_model": "Neural Network (FFNN)",
+        }
     )
 
     fig_bar = px.bar(
@@ -199,7 +211,8 @@ with tab2:
         barmode="group",
         color_discrete_map={
             "Naive baseline (climatology)": "#9aa0a6",
-            "Model (Random Forest)": "#2f6fed",
+            "Random Forest": "#4fa3e3",
+            "Neural Network (FFNN)": "#2f6fed",
         },
         labels={"depth": "Depth", "rmse": "RMSE (&deg;C)", "method": ""},
     )
@@ -211,12 +224,13 @@ with tab2:
         metrics.rename(
             columns={
                 "depth": "Depth",
-                "rmse_model": "RMSE - Model",
                 "rmse_baseline": "RMSE - Naive baseline",
+                "rmse_rf": "RMSE - Random Forest",
+                "rmse_model": "RMSE - Neural Network",
                 "correlation": "Correlation (r)",
                 "bias": "Bias (model - actual)",
             }
-        ),
+        )[["Depth", "RMSE - Naive baseline", "RMSE - Random Forest", "RMSE - Neural Network", "Correlation (r)", "Bias (model - actual)"]],
         width="stretch",
         hide_index=True,
     )

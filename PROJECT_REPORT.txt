@@ -272,10 +272,18 @@ spec. Read this section before telling anyone the project is "done".
 
   [DONE] PoC demo over the region
       - Two working UIs exist and were smoke-tested this session:
-          1. Streamlit app (streamlit_app.py) -- full interactive app, Sea Green
-             themed, includes a Marine Heatwave tab. Still shows the
-             Random Forest only, NOT updated to the FFNN (2026-08-27) --
-             the two UIs are now out of sync on which model they show.
+          1. Streamlit app (streamlit_app.py) -- full interactive app, Sea
+             Green themed, includes a Marine Heatwave tab. UPDATED
+             2026-08-27 (later same day) to match the static dashboard:
+             cached_train() now trains both RF and the FFNN and merges
+             their metrics (rmse_rf + rmse_model columns), so the RMSE
+             bar chart, metrics table, profile explorer, and predicted-
+             vs-actual scatter all show the FFNN as the primary model
+             with RF as a labeled comparison -- verified by directly
+             running the exact merge logic standalone (see git log), not
+             just a Streamlit HTTP 200 (Streamlit defers script execution
+             until a client connects, so a bare curl 200 doesn't prove
+             the training code path actually ran without error).
           2. A static dashboard (public/) -- Vercel-deployable, zero
              server. Restructured 2026-08-27 into 4 tabs (Live Monitor /
              The Model / Results / How it Works), replacing the earlier
@@ -284,15 +292,35 @@ spec. Read this section before telling anyone the project is "done".
              too much text, unclear where "the solution" actually was).
              A persistent claim banner up top states the headline metric
              (RMSE improvement %, correlation, vs.-RF %) computed live
-             from data.json's meta block.
-      - Both are demonstrably running (verified: HTTP 200s, no console/
-        Python errors, all HTML element IDs referenced by app.js cross-
-        checked to exist) but this has NOT been visually reviewed in an
-        actual browser by a human or a vision-capable check -- do that
-        before presenting, especially the new tab-switching behavior and
-        the Plotly charts inside initially-hidden tabs (handled via a
-        window resize-event dispatch on tab switch -- see setupTabs() in
-        app.js -- but not visually confirmed).
+             from data.json's meta block. Also added: a mobile-only
+             floating glassmorphism bottom nav (<=640px), replacing the
+             top tab strip on small screens -- hand-built in CSS,
+             inspired by the visual style of kareemessam09/liquid-glass-
+             bottom-nav (that project is native Android/Kotlin/Compose,
+             so its code itself isn't usable on the web; only the look
+             was recreated). Two other user-suggested repos
+             (sylveon/OnePlusDrawerIcon, DHD2280/Oxygen-Customizer) were
+             checked and are Android system-customization tools (Xposed
+             modules / rooted-device UI tweaks) with no web-relevant code
+             or assets -- correctly NOT integrated; flagged to the user
+             as a platform mismatch rather than forced in.
+      - Both UIs are demonstrably running (verified: HTTP 200s, no
+        console/Python errors, all HTML element IDs referenced by app.js
+        cross-checked to exist, the Streamlit training path re-run
+        standalone) but NEITHER has been visually reviewed in an actual
+        browser by a human or a vision-capable check -- do that before
+        presenting, especially: the new tab-switching behavior, the
+        Plotly charts inside initially-hidden tabs (handled via a window
+        resize-event dispatch on tab switch -- see setupTabs() in
+        app.js), and the new mobile bottom nav at <=640px width.
+      - Hosting: confirmed staying on Vercel is correct, not moving to
+        Hugging Face. PyTorch/training only runs OFFLINE when generating
+        public/data.json (`python export_data.py`) -- the deployed
+        Vercel site is pure static HTML/JS/JSON with zero Python runtime
+        at request time, so adding the FFNN did not add any deployment
+        weight. The only thing that would matter for Vercel is data.json
+        file size (currently ~780 KB + ~1.1 MB for data_real.json, both
+        comfortably small).
 
 
 3. WHAT IS REAL VS. SIMULATED -- QUICK REFERENCE (read this before saying
@@ -462,9 +490,12 @@ spec. Read this section before telling anyone the project is "done".
        real independent Argo profiles for validation, or use INCOIS LAS
        gridded Argo as specified.
     7. Bring the Streamlit app's "Live Data" story up to parity with the
-       static dashboard (it currently only shows the synthetic track; it
-       also doesn't yet show currents/chlorophyll, added to the static
-       dashboard on 2026-08-27).
+       static dashboard. [Model parity DONE 2026-08-27 -- Streamlit now
+       shows the FFNN + RF comparison, same as public/.] Still open: the
+       Streamlit app has no real-data tab at all (MOSDAC/CMEMS SST, SSS,
+       currents, chlorophyll) -- that's only in the static dashboard's
+       Live Monitor tab. Would need a new Streamlit tab reusing
+       real_data.py, mirroring what public/app.js's bootReal() does.
 
   P2 (polish):
     8. Replace the raw scatter-point map with a proper regridded raster/
