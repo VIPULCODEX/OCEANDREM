@@ -20,7 +20,7 @@ from ocean_pipeline_demo import (
 )
 from dl_pipeline import (
     train_pooled_ffnn_and_evaluate, train_cnn_and_evaluate, train_lstm_and_evaluate,
-    train_vit_and_evaluate, train_autoencoder_and_evaluate,
+    train_vit_and_evaluate, train_autoencoder_and_evaluate, train_gnn_and_evaluate,
 )
 
 # Every model we've trained and tested, same time-based split, same test
@@ -31,6 +31,7 @@ MODELS = [
     ("rf", "Random Forest", train_and_evaluate),
     ("cnn", "CNN (satellite patches)", train_cnn_and_evaluate),
     ("vit", "ViT (attention over patches)", train_vit_and_evaluate),
+    ("gnn", "GNN (k-NN graph)", train_gnn_and_evaluate),
     ("autoencoder", "Autoencoder (unsupervised embedding)", train_autoencoder_and_evaluate),
     ("lstm", "LSTM (depth decoder)", train_lstm_and_evaluate),
     ("ffnn", "FFNN (headline)", train_pooled_ffnn_and_evaluate),

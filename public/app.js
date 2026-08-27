@@ -312,6 +312,7 @@ function drawStatic() {
     { key: "rmse_rf", name: "Random Forest", color: "#9a7fd1", dash: "dash" },
     { key: "rmse_cnn", name: "CNN", color: "#e58a3a", dash: "dash" },
     { key: "rmse_vit", name: "ViT", color: "#4fa3e3", dash: "dash" },
+    { key: "rmse_gnn", name: "GNN", color: "#5cd6c0", dash: "dash" },
     { key: "rmse_autoencoder", name: "Autoencoder", color: "#c463d9", dash: "dash" },
     { key: "rmse_lstm", name: "LSTM", color: "#e2543f", dash: "dash" },
     { key: "rmse_model", name: DATA.meta.model_name || "FFNN", color: "#3fcf8e", dash: "solid" },
@@ -387,6 +388,7 @@ function drawMetricsTable() {
       <td>${m.rmse_rf.toFixed(3)}</td>
       <td>${m.rmse_cnn.toFixed(3)}</td>
       <td>${m.rmse_vit.toFixed(3)}</td>
+      <td>${m.rmse_gnn.toFixed(3)}</td>
       <td>${m.rmse_autoencoder.toFixed(3)}</td>
       <td>${m.rmse_lstm.toFixed(3)}</td>
       <td><b>${m.rmse_model.toFixed(3)}</b></td>
@@ -394,7 +396,7 @@ function drawMetricsTable() {
       <td>${m.bias >= 0 ? "+" : ""}${m.bias.toFixed(3)}</td>
     </tr>`).join("");
   document.getElementById("metricsTable").innerHTML = `
-    <thead><tr><th>Depth</th><th>Naive guess</th><th>${baselineName}</th><th>CNN</th><th>ViT</th><th>Autoencoder</th><th>LSTM</th><th>${modelName}</th><th>Correlation</th><th>Bias</th></tr></thead>
+    <thead><tr><th>Depth</th><th>Naive guess</th><th>${baselineName}</th><th>CNN</th><th>ViT</th><th>GNN</th><th>Autoencoder</th><th>LSTM</th><th>${modelName}</th><th>Correlation</th><th>Bias</th></tr></thead>
     <tbody>${rows}</tbody>`;
 }
 

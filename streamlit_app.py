@@ -29,7 +29,7 @@ from ocean_pipeline_demo import (
 )
 from dl_pipeline import (
     train_pooled_ffnn_and_evaluate, train_cnn_and_evaluate, train_lstm_and_evaluate,
-    train_vit_and_evaluate, train_autoencoder_and_evaluate,
+    train_vit_and_evaluate, train_autoencoder_and_evaluate, train_gnn_and_evaluate,
 )
 
 st.set_page_config(page_title="Sea Green | OceanEmbed", layout="wide", page_icon="🌊")
@@ -40,6 +40,7 @@ MODELS = [
     ("rf", "Random Forest", train_and_evaluate),
     ("cnn", "CNN (satellite patches)", train_cnn_and_evaluate),
     ("vit", "ViT (attention over patches)", train_vit_and_evaluate),
+    ("gnn", "GNN (k-NN graph)", train_gnn_and_evaluate),
     ("autoencoder", "Autoencoder (unsupervised embedding)", train_autoencoder_and_evaluate),
     ("lstm", "LSTM (depth decoder)", train_lstm_and_evaluate),
     ("ffnn", "FFNN (headline)", train_pooled_ffnn_and_evaluate),
@@ -217,7 +218,7 @@ with tab1:
 # ----------------------------------------------------------------------
 with tab2:
     st.subheader("Which model wins?")
-    st.caption("Six independently-trained approaches (one classical, five neural-network designs), same held-out test data. Shorter bar = less error.")
+    st.caption("Seven independently-trained approaches (one classical, six neural-network designs), same held-out test data. Shorter bar = less error.")
     fig_summary = px.bar(
         model_summary, x="name", y="avg_rmse",
         color=model_summary["avg_rmse"] == model_summary["avg_rmse"].min(),
@@ -228,11 +229,11 @@ with tab2:
     fig_summary.update_layout(showlegend=False, height=350)
     st.plotly_chart(fig_summary, width="stretch")
 
-    st.subheader("RMSE per depth: all six models vs naive baseline")
+    st.subheader("RMSE per depth: all seven models vs naive baseline")
 
     metrics_long = metrics.melt(
         id_vars="depth",
-        value_vars=["rmse_baseline", "rmse_rf", "rmse_cnn", "rmse_vit", "rmse_autoencoder", "rmse_lstm", "rmse_model"],
+        value_vars=["rmse_baseline", "rmse_rf", "rmse_cnn", "rmse_vit", "rmse_gnn", "rmse_autoencoder", "rmse_lstm", "rmse_model"],
         var_name="method",
         value_name="rmse",
     )
@@ -242,6 +243,7 @@ with tab2:
             "rmse_rf": "Random Forest",
             "rmse_cnn": "CNN (satellite patches)",
             "rmse_vit": "ViT (attention over patches)",
+            "rmse_gnn": "GNN (k-NN graph)",
             "rmse_autoencoder": "Autoencoder (unsupervised embedding)",
             "rmse_lstm": "LSTM (depth decoder)",
             "rmse_model": "Neural Network (FFNN, headline)",
@@ -256,6 +258,7 @@ with tab2:
             "Random Forest": "#9a7fd1",
             "CNN (satellite patches)": "#e58a3a",
             "ViT (attention over patches)": "#4fa3e3",
+            "GNN (k-NN graph)": "#5cd6c0",
             "Autoencoder (unsupervised embedding)": "#c463d9",
             "LSTM (depth decoder)": "#e2543f",
             "Neural Network (FFNN, headline)": "#2f6fed",
@@ -274,6 +277,7 @@ with tab2:
                 "rmse_rf": "RMSE - Random Forest",
                 "rmse_cnn": "RMSE - CNN",
                 "rmse_vit": "RMSE - ViT",
+                "rmse_gnn": "RMSE - GNN",
                 "rmse_autoencoder": "RMSE - Autoencoder",
                 "rmse_lstm": "RMSE - LSTM",
                 "rmse_model": "RMSE - FFNN (headline)",
@@ -281,7 +285,7 @@ with tab2:
                 "bias": "Bias (model - actual)",
             }
         )[[
-            "Depth", "RMSE - Naive baseline", "RMSE - Random Forest", "RMSE - CNN", "RMSE - ViT",
+            "Depth", "RMSE - Naive baseline", "RMSE - Random Forest", "RMSE - CNN", "RMSE - ViT", "RMSE - GNN",
             "RMSE - Autoencoder", "RMSE - LSTM", "RMSE - FFNN (headline)", "Correlation (r)", "Bias (model - actual)",
         ]],
         width="stretch",
