@@ -30,7 +30,7 @@ MOSDAC_DIR = "MOSDAC"
 # Resolve CMEMS files by the variable they actually contain, not by filename --
 # the user's downloads get renamed by the browser ("Sea Surface temp.nc",
 # "Sea surface salinity.nc") and don't reliably match a naming convention.
-_VAR_LABEL = {"thetao": "sst", "so": "sss"}
+_VAR_LABEL = {"thetao": "sst", "so": "sss", "chl": "chl", "phyc": "phyc"}
 
 
 def _classify(anomaly):
@@ -103,6 +103,55 @@ def load_cmems_series(varname="thetao", stride=6):
     }
 
 
+def load_cmems_currents_series(stride=10):
+    """
+    Real surface current field (uo, vo) -- one of the spec's five required
+    input variables. Returns a basin-mean speed series over the pulled
+    window plus a subsampled vector-field snapshot (lat, lon, uo, vo, speed,
+    heading) for the most recent day, for drawing an actual arrow/quiver map.
+    """
+    ds, path = _find_cmems_dataset("uo")
+    lon_hi = min(LON_RANGE[1], float(ds.longitude.max()))
+    sub = ds.isel(depth=0).sel(latitude=slice(*LAT_RANGE), longitude=slice(LON_RANGE[0], lon_hi))
+
+    speed = np.sqrt(sub["uo"] ** 2 + sub["vo"] ** 2)
+    basin_mean = speed.mean(dim=["latitude", "longitude"], skipna=True).to_series()
+    daily = basin_mean.resample("1D").mean()
+    window_mean = float(daily.mean())
+
+    series = [
+        {"date": str(d.date()), "speed": round(float(v), 4), "anomaly": round(float(v - window_mean), 4)}
+        for d, v in daily.items()
+    ]
+
+    latest = sub.isel(time=-1)
+    lat2d, lon2d = np.meshgrid(latest.latitude.values, latest.longitude.values, indexing="ij")
+    uo, vo = latest["uo"].values, latest["vo"].values
+    mask = ~np.isnan(uo) & ~np.isnan(vo)
+    lat_s, lon_s = lat2d[mask][::stride], lon2d[mask][::stride]
+    uo_s, vo_s = uo[mask][::stride], vo[mask][::stride]
+    speed_s = np.sqrt(uo_s ** 2 + vo_s ** 2)
+    # Compass heading (0=N, 90=E, clockwise) from eastward/northward components,
+    # matching Plotly's marker.angle convention (0=up, clockwise).
+    heading = (90 - np.degrees(np.arctan2(vo_s, uo_s))) % 360
+
+    return {
+        "source_file": os.path.basename(path),
+        "window_start": series[0]["date"],
+        "window_end": series[-1]["date"],
+        "window_mean_speed": round(window_mean, 4),
+        "series": series,
+        "today_anomaly": series[-1]["anomaly"],
+        "snapshot": {
+            "time": str(latest.time.values)[:19],
+            "lat": [round(float(v), 2) for v in lat_s],
+            "lon": [round(float(v), 2) for v in lon_s],
+            "speed": [round(float(v), 3) for v in speed_s],
+            "heading": [round(float(v), 1) for v in heading],
+        },
+    }
+
+
 def _read_mosdac_frame(path, stride=8):
     with h5py.File(path, "r") as f:
         lat = f["Latitude"][::stride, ::stride].astype(np.float32) * f["Latitude"].attrs["scale_factor"][0]
@@ -143,6 +192,15 @@ if __name__ == "__main__":
     sss = load_cmems_series("so")
     print("CMEMS SSS window:", sss["window_start"], "->", sss["window_end"],
           "| today anomaly:", sss["today_anomaly"], "| file:", sss["source_file"])
+    cur = load_cmems_currents_series()
+    print("CMEMS currents window:", cur["window_start"], "->", cur["window_end"],
+          "| today anomaly:", cur["today_anomaly"], "| file:", cur["source_file"],
+          "| snapshot points:", len(cur["snapshot"]["speed"]))
+
+    chl = load_cmems_series("chl")
+    print("CMEMS chlorophyll window:", chl["window_start"], "->", chl["window_end"],
+          "| today anomaly:", chl["today_anomaly"], "| file:", chl["source_file"])
+
     frames = load_mosdac_series()
     print(f"MOSDAC frames: {len(frames)}, first={frames[0]['time']}, "
           f"points/frame~{len(frames[0]['sst'])}")
