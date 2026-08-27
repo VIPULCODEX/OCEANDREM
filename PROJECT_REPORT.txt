@@ -96,29 +96,45 @@ spec. Read this section before telling anyone the project is "done".
         0.25 x 0.25 deg lat/lon grid for both real sources, and change
         GRID_STEP to 0.25 in the synthetic generator too, for consistency.
 
-  [PARTIAL] 3. Input variables
+  [MOSTLY DONE] 3. Input variables  (updated 2026-08-27: currents now real)
       - SST:  REAL data available and used (MOSDAC INSAT-3DR + CMEMS thetao).
       - SSS:  REAL data available and used (CMEMS `so`, file "Sea surface
               salinity.nc"). Wired into real_data.py / export_real_data.py /
               the dashboard's real-data trend chart (secondary y-axis).
-      - SSH/SLA:            NOT AVAILABLE. No file was provided. The
-                             synthetic pipeline invents a plausible SSH field
-                             (smooth Gaussian "eddies") purely for the
-                             thermocline-depth physics used to generate
-                             synthetic subsurface temperatures -- it is NOT
-                             real altimetry data.
-      - Surface currents U,V:  NOT AVAILABLE at all, real or synthetic.
-      - Surface winds U,V:      Only SYNTHETIC (a simple sinusoidal wind-speed
-                             field in ocean_pipeline_demo.py). No real wind
-                             product (e.g. ASCAT/OSCAT/ERA5) was integrated.
-      - ACTION ITEM: pull real SSH/SLA (CMEMS `zos` or an altimetry product
-        like SSALTO/DUACS) and real winds (ASCAT/OSCAT via MOSDAC, or ERA5)
-        for the same region/window if continuing. The `_find_cmems_dataset`
-        pattern in real_data.py generalizes trivially to any additional
-        CMEMS variable (zos, uo/vo, etc.) if more .nc extracts are added --
-        just call `load_cmems_series("zos")` etc. (may need a small tweak
-        since that helper assumes a `depth` dimension; current/wind products
-        may not have one).
+      - Surface currents U,V:  REAL as of 2026-08-27. File
+              cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_....nc (uo, vo),
+              same product family, 1-27 Aug 2026. Loaded by
+              load_cmems_currents_series() in real_data.py: basin-mean
+              speed series + a subsampled vector-field snapshot (lat, lon,
+              speed, compass heading) for the most recent day. Rendered in
+              the dashboard as an actual arrow/quiver map (Plotly marker
+              symbol "arrow" with per-point `angle`), color = speed. This
+              closes one of the two remaining input-variable gaps.
+      - Chlorophyll (chl, phyc) -- BONUS, not one of the spec's 5 required
+              inputs, but real data (CMEMS GLOBAL_ANALYSISFORECAST_BGC_001_028,
+              0.25 deg, file cmems_mod_glo_bgc-pft_anfc_0.25deg_....nc) that
+              ties to the problem statement's "marine ecosystems" framing.
+              Loaded via the existing generalized load_cmems_series("chl").
+              Shown as a real trend chart alongside currents.
+      - SSH/SLA:            STILL NOT AVAILABLE. No file has been provided
+                             for this. The synthetic pipeline invents a
+                             plausible SSH field (smooth Gaussian "eddies")
+                             purely for the thermocline-depth physics used
+                             to generate synthetic subsurface temperatures --
+                             it is NOT real altimetry data.
+      - Surface winds U,V:      STILL only SYNTHETIC (a simple sinusoidal
+                             wind-speed field in ocean_pipeline_demo.py). No
+                             real wind product (e.g. ASCAT/OSCAT/ERA5) has
+                             been integrated.
+      - ACTION ITEM (only remaining input-variable gap): pull real SSH/SLA
+        (CMEMS `zos`) and real winds (ASCAT/OSCAT via MOSDAC, or ERA5) for
+        the same region/window if continuing. The `_find_cmems_dataset` /
+        `load_cmems_series(varname)` pattern in real_data.py generalizes
+        directly to `zos` the same way it did to `so`/`chl` -- just call
+        `load_cmems_series("zos")` once the file exists. Winds/currents
+        both being vector fields, load_cmems_currents_series() is a
+        ready-made template for a load_cmems_winds_series() once a wind
+        u/v file is available.
 
   [NOT DONE] 4. Compact satellite embeddings via DL (CNN/ViT/Autoencoder/GNN/
       attention)
@@ -249,6 +265,13 @@ spec. Read this section before telling anyone the project is "done".
       -> public/data_real.json : cmems{}
     - CMEMS so (SSS, ~0.49m), same product family, 1-27 Aug 2026.
       -> public/data_real.json : cmems_sss{}
+    - CMEMS uo/vo (surface currents, ~0.49m), same product family,
+      1-27 Aug 2026. Rendered as a real vector/arrow map (direction +
+      speed), added 2026-08-27.
+      -> public/data_real.json : cmems_currents{}
+    - CMEMS chl (chlorophyll, 0.25 deg BGC product), 1-27 Aug 2026. Bonus
+      ecosystem-impact variable, not one of the spec's 5 required inputs.
+      -> public/data_real.json : cmems_chl{}
     - The finding itself is real: this region's basin-mean SST/SSS in the
       pulled window is essentially flat (no anomaly/heatwave in this
       particular slice of real data) -- this is reported HONESTLY as a
@@ -282,8 +305,11 @@ spec. Read this section before telling anyone the project is "done".
                             files. `_find_cmems_dataset(varname)` resolves
                             files by variable name (robust to renames).
                             `load_cmems_series(varname)` generalizes over
-                            thetao/so. `load_mosdac_series()` reads +crops+
-                            subsamples INSAT-3DR SST passes.
+                            thetao/so/chl/phyc. `load_cmems_currents_series()`
+                            (added 2026-08-27) handles the uo/vo vector field
+                            specially (speed + compass heading, not a scalar).
+                            `load_mosdac_series()` reads+crops+subsamples
+                            INSAT-3DR SST passes.
   export_real_data.py      Bakes real_data.py output into
                             public/data_real.json (~1 MB).
   streamlit_app.py                   Streamlit UI (full interactive app), Sea Green
@@ -334,6 +360,20 @@ spec. Read this section before telling anyone the project is "done".
     anfc_0.083deg_PT6H-i_....nc   Duplicate of "Sea Surface temp.nc" (see
                             above). Both resolve to the same data via
                             real_data.py's variable-based file lookup.
+  cmems_mod_glo_phy-cur_anfc_
+    0.083deg_P1D-m_....nc   Added 2026-08-27. Raw CMEMS uo/vo (surface
+                            currents) extract (gitignored, ~164 MB), same
+                            product family, 1-27 Aug 2026, daily mean.
+  cmems_mod_glo_bgc-pft_anfc_
+    0.25deg_P1D-m_....nc    Added 2026-08-27. Raw CMEMS chl/phyc
+                            (chlorophyll / phytoplankton carbon) extract
+                            (gitignored, ~18 MB), GLOBAL_ANALYSISFORECAST_
+                            BGC_001_028, 0.25 deg (matches spec resolution),
+                            1-27 Aug 2026, daily mean. Bonus ecosystem
+                            variable, not one of the spec's 5 required
+                            inputs -- kept because it's real, at-spec
+                            resolution, and ties to the problem statement's
+                            "marine ecosystems" motivation.
   web/                      Empty directory, unclear origin/purpose, not
                             referenced by any code. Left untouched.
   synthetic_argo_dataset.csv, ocean_pipeline_demo.png
@@ -374,13 +414,16 @@ spec. Read this section before telling anyone the project is "done".
 
   P1 (rounds out the spec):
     4. Pull real SSH/SLA (CMEMS `zos`) and real winds (ASCAT/OSCAT or ERA5)
-       -- both needed as input variables per the spec.
-    5. Add correlation and bias metrics alongside RMSE.
+       -- the only two of the spec's 5 input variables still missing (SST,
+       SSS, and surface currents are now real as of 2026-08-27).
+    5. [DONE 2026-08-26] Correlation and bias metrics added alongside RMSE.
     6. Fix the argopy install (see section 2, item "Target dataset") to get
        real independent Argo profiles for validation, or use INCOIS LAS
        gridded Argo as specified.
     7. Bring the Streamlit app's "Live Data" story up to parity with the
-       static dashboard (it currently only shows the synthetic track).
+       static dashboard (it currently only shows the synthetic track; it
+       also doesn't yet show currents/chlorophyll, added to the static
+       dashboard on 2026-08-27).
 
   P2 (polish):
     8. Replace the raw scatter-point map with a proper regridded raster/

@@ -51,10 +51,16 @@ For a Space: pick the **Streamlit** SDK, point it at this repo, and it picks up 
 - **MOSDAC** — `MOSDAC/*.h5`, INSAT-3DR L2B SST (ISRO/SAC), half-hourly, 25 Aug 2026.
   8 evenly-spaced real passes, cropped to the study region, drive the "Live
   Satellite Pass" panel.
-- **CMEMS** — `cmems_mod_glo_phy-thetao_*.nc`, `GLOBAL_ANALYSISFORECAST_PHY_001_024`
-  (Mercator Ocean), 6-hourly, 1–26 Aug 2026, single near-surface level (~0.49 m).
-  Daily-mean basin SST drives the real "Basin SST Trend" chart and the live
-  anomaly-vs-window-mean status chip.
+- **CMEMS**, all `GLOBAL_ANALYSISFORECAST_PHY_001_024` / `_BGC_001_028`
+  (Mercator Ocean), 1–27 Aug 2026, single near-surface level (~0.49 m):
+  - `thetao` (SST) and `so` (SSS) — daily-mean basin trend + live status chip.
+  - `uo`/`vo` (surface currents) — a real vector-field snapshot (direction +
+    speed), one of the spec's five required input variables.
+  - `chl` (chlorophyll, 0.25° BGC product) — a real ecosystem-impact proxy,
+    tying back to the problem statement's "marine ecosystems" motivation.
+
+  That's 4 of the spec's 5 required surface inputs now backed by real data —
+  only **SSH/SLA** and **surface winds** are still missing.
 
 To refresh with new files, drop them in `MOSDAC/` / the repo root and re-run:
 

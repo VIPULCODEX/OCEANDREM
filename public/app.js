@@ -90,9 +90,56 @@ async function bootReal() {
   }
   Plotly.newPlot("realTrendChart", traces, layout, { displayModeBar: false, responsive: true });
 
+  drawCurrents();
+  drawChlorophyll();
+
   renderRealFrame(0);
   document.getElementById("realPlayBtn").addEventListener("click", toggleRealPlay);
   startRealLoop();
+}
+
+function drawCurrents() {
+  const cur = REAL.cmems_currents;
+  if (!cur) return;
+  const snap = cur.snapshot;
+
+  document.getElementById("currentsDesc").textContent =
+    `Real surface current vectors, ${snap.time.slice(0, 10)} — mean speed ${cur.window_mean_speed.toFixed(2)} m/s ` +
+    `(${cur.today_anomaly >= 0 ? "+" : ""}${cur.today_anomaly.toFixed(2)} vs. window mean). Arrow = direction, color = speed.`;
+
+  Plotly.newPlot(
+    "currentsChart",
+    [{
+      x: snap.lon, y: snap.lat, mode: "markers", type: "scatter",
+      marker: {
+        size: 9, symbol: "arrow", angle: snap.heading, angleref: "up",
+        color: snap.speed, colorscale: "Viridis", colorbar: { title: "m/s" },
+      },
+      hovertemplate: "speed %{marker.color:.2f} m/s<extra></extra>",
+    }],
+    {
+      ...PLOTLY_DARK,
+      xaxis: { title: "Longitude", range: [45, 105], gridcolor: "#1c4a41" },
+      yaxis: { title: "Latitude", range: [5, 30], gridcolor: "#1c4a41" },
+      showlegend: false,
+    },
+    { displayModeBar: false, responsive: true }
+  );
+}
+
+function drawChlorophyll() {
+  const chl = REAL.cmems_chl;
+  if (!chl) return;
+  Plotly.newPlot(
+    "chlChart",
+    [{
+      x: chl.series.map((d) => d.date), y: chl.series.map((d) => d.chl),
+      mode: "lines+markers", line: { color: "#3fcf8e", width: 2 }, marker: { size: 5 },
+      name: "Chlorophyll (mg/m³)",
+    }],
+    { ...PLOTLY_DARK, xaxis: { title: "Date", gridcolor: "#1c4a41" }, yaxis: { title: "Chlorophyll (mg/m³)", gridcolor: "#1c4a41" } },
+    { displayModeBar: false, responsive: true }
+  );
 }
 
 function renderRealFrame(idx) {

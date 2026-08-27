@@ -63,7 +63,7 @@
 
     <section class="real-section">
       <h2 class="section-title"><span class="reddot"></span> Live Data — MOSDAC (ISRO) &amp; CMEMS (Copernicus Marine)</h2>
-      <div class="desc">Genuine satellite / reanalysis data pulled for this build — not simulated. Basin SST is monitored against its own recent baseline; the satellite pass below is real INSAT-3DR imagery-derived SST from 25 Aug 2026.</div>
+      <div class="desc">Genuine satellite / reanalysis data pulled for this build — not simulated. SST, SSS, surface currents (u, v), and chlorophyll are all real CMEMS/MOSDAC products for 1–27 Aug 2026; only SSH/SLA and surface winds are still missing from the spec's five required inputs.</div>
 
       <div class="kpi-row kpi-row-3">
         <div class="kpi">
@@ -98,6 +98,19 @@
           </h2>
           <div class="desc">Real half-hourly INSAT-3DR SST passes (MOSDAC/ISRO), cropped to the study region.</div>
           <div id="realMapChart" class="chart chart-md"></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <h2>Surface Current Field (Real, CMEMS u/v)</h2>
+          <div class="desc" id="currentsDesc">Real surface current vectors — direction and speed, most recent day. One of the spec's five required input variables.</div>
+          <div id="currentsChart" class="chart chart-md"></div>
+        </div>
+        <div class="panel">
+          <h2>Chlorophyll Trend (Real, Ecosystem Proxy)</h2>
+          <div class="desc">Real CMEMS surface chlorophyll — a proxy for how the heatwave-relevant physics above (stratification, warming) affects the marine ecosystem, per the problem background.</div>
+          <div id="chlChart" class="chart chart-md"></div>
         </div>
       </div>
     </section>
@@ -193,8 +206,9 @@
         <div class="source-card">
           <h3>MOSDAC / ISRO + CMEMS</h3>
           <p><b>Real, live in this build</b> (see Live Data section above): INSAT-3DR L2B SST
-          (ISRO/SAC, 25 Aug 2026) and CMEMS <code>thetao</code> + <code>so</code> (SST &amp; SSS)
-          reanalysis (Aug 2026), baked into <code>public/data_real.json</code>.</p>
+          (ISRO/SAC, 25 Aug 2026) and CMEMS <code>thetao</code>/<code>so</code>/<code>uo</code>,<code>vo</code>/<code>chl</code>
+          (SST, SSS, surface currents, chlorophyll — Aug 2026), baked into <code>public/data_real.json</code>.
+          Only SSH/SLA and surface winds remain unfilled from the spec's five required inputs.</p>
         </div>
         <div class="source-card">
           <h3>NASA Worldview / GIBS</h3>

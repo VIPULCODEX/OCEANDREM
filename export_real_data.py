@@ -9,7 +9,7 @@ gitignored -- only this compact derived JSON is committed.
 """
 import json
 import os
-from real_data import load_cmems_series, load_mosdac_series
+from real_data import load_cmems_series, load_cmems_currents_series, load_mosdac_series
 
 
 def main():
@@ -19,6 +19,12 @@ def main():
     print("Loading real CMEMS basin SSS series + current snapshot...")
     cmems_sss = load_cmems_series("so")
 
+    print("Loading real CMEMS surface currents (uo, vo)...")
+    cmems_currents = load_cmems_currents_series(stride=40)
+
+    print("Loading real CMEMS chlorophyll (ecosystem proxy)...")
+    cmems_chl = load_cmems_series("chl")
+
     print("Loading real MOSDAC (INSAT-3DR) satellite passes...")
     mosdac_frames = load_mosdac_series()
 
@@ -26,10 +32,14 @@ def main():
         "source": {
             "cmems_sst": f"CMEMS GLOBAL_ANALYSISFORECAST_PHY_001_024 (thetao, ~0.49m), {cmems_sst['source_file']}",
             "cmems_sss": f"CMEMS GLOBAL_ANALYSISFORECAST_PHY_001_024 (so, ~0.49m), {cmems_sss['source_file']}",
+            "cmems_currents": f"CMEMS GLOBAL_ANALYSISFORECAST_PHY_001_024 (uo/vo, ~0.49m), {cmems_currents['source_file']}",
+            "cmems_chl": f"CMEMS GLOBAL_ANALYSISFORECAST_BGC_001_028 (chl, 0.25deg), {cmems_chl['source_file']}",
             "mosdac": "INSAT-3DR L2B SST V02R00, ISRO/SAC, 25 Aug 2026",
         },
         "cmems": cmems_sst,
         "cmems_sss": cmems_sss,
+        "cmems_currents": cmems_currents,
+        "cmems_chl": cmems_chl,
         "mosdac_frames": mosdac_frames,
     }
 
