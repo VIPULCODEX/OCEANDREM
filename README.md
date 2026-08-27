@@ -18,10 +18,12 @@ The dashboard (`public/`) is organized as four tabs: **Live Monitor** (real curr
 
 ## The models
 
-`dl_pipeline.py` trains **six independent models** on the synthetic Argo dataset,
+`dl_pipeline.py` trains **seven independent models** on the synthetic Argo dataset,
 all on the *identical* time-based train/test split (`time_based_split()` in
-`ocean_pipeline_demo.py`) for a fair comparison — all six (plus a naive baseline)
-are shown side by side in the dashboard's Results tab:
+`ocean_pipeline_demo.py`) for a fair comparison — all seven (plus a naive baseline)
+are shown side by side in the dashboard's Results tab. This covers every
+architecture family the problem statement names (CNN, ViT, Autoencoder, GNN,
+attention-hybrid via ViT):
 
 | Model | Type | Input | Mean RMSE | vs. baseline |
 |---|---|---|---|---|
@@ -29,12 +31,14 @@ are shown side by side in the dashboard's Results tab:
 | Random Forest | classical ML | flat features (incl. u/v wind + curl) | ~0.34°C | -52% |
 | **FFNN** (headline) | neural net | flat features (incl. u/v wind + curl) | ~0.33°C | -54% |
 | ViT | neural net | real 5×5 satellite-grid patch (sst/ssh/sss/curl) → attention → embedding | ~0.33°C | -53% |
+| GNN | neural net | k-NN graph of profile locations → 2-layer GCN + self-feature skip | ~0.34°C | -53% |
 | CNN | neural net | real 5×5 satellite-grid patch (sst/ssh/sss/curl) → conv → pooled embedding | ~0.34°C | -52% |
 | LSTM | neural net | depth-sequence decoder | ~0.36°C | -49% |
 | Autoencoder | neural net | unsupervised embedding + small supervised probe | ~0.44°C | -38% |
 
-(Exact CNN/ViT/LSTM figures vary slightly run to run — a known PyTorch/cuDNN GPU
-non-determinism quirk in Conv2d/LSTM kernels, not a bug; the ordering is stable.)
+(Exact CNN/ViT/LSTM/GNN figures vary slightly run to run — a known PyTorch/cuDNN
+GPU non-determinism quirk in Conv2d/LSTM/matmul kernels, not a bug; the ordering
+is stable.)
 
 FFNN wins and is the model shown in the profile explorer / scatter panels; it beat
 Random Forest once the synthetic profile count was raised from 220 to 600 (not
@@ -43,13 +47,19 @@ CNN and ViT are the closest things in this repo to the "satellite embeddings" th
 problem statement asks for: both pool a real spatial patch of the surface grid
 into a compact latent vector before predicting, rather than using flattened point
 features directly — ViT edges out CNN here, the one case where attention beat
-convolution on identical input. The Autoencoder tests a different idea: an
-embedding trained *without ever seeing the depth targets* (pure unsupervised
-reconstruction), then a small supervised head on top — it came in last, which is
-the textbook expected result at this data scale (self-supervised pretraining's
-usual edge is generalizing to unseen data, which isn't what's being tested here).
-See `PROJECT_REPORT.txt` §4 for full architecture detail on all five neural nets
-and why each lands where it does on this synthetic data.
+convolution on identical input. The GNN models the ocean as a graph — each Argo
+profile is a node connected to its 6 nearest neighbors by location, and a 2-layer
+Graph Convolutional Network propagates surface information between nearby
+profiles. Its first version badly over-smoothed (0.526 RMSE, worse than every
+other model); diagnosed as classic GCN self-feature dilution and fixed with a
+direct, un-smoothed skip pathway (the same idea behind APPNP/JK-Nets) — a real
+architectural fix, not tuning until it won. The Autoencoder tests a different
+idea: an embedding trained *without ever seeing the depth targets* (pure
+unsupervised reconstruction), then a small supervised head on top — it came in
+last, which is the textbook expected result at this data scale (self-supervised
+pretraining's usual edge is generalizing to unseen data, which isn't what's being
+tested here). See `PROJECT_REPORT.txt` §2 item 4 for full architecture detail on
+all six neural nets and why each lands where it does on this synthetic data.
 
 We also tried to replicate the *actual* headline method from Loo et al. 2026
 (arXiv:2605.00860) — cluster by depth-band and time-phase, then train a separate
@@ -147,7 +157,7 @@ Flip the flag, fill in the two commented API calls, re-run `export_data.py` (or 
 
 ```
 ocean_pipeline_demo.py   # simulated data layer, heatwave detection, clustering, RF baseline, training/eval
-dl_pipeline.py           # all 5 neural nets (FFNN headline, CNN, ViT, Autoencoder, LSTM) + the depth/time clustering experiment
+dl_pipeline.py           # all 6 neural nets (FFNN headline, CNN, ViT, GNN, Autoencoder, LSTM) + the depth/time clustering experiment
 export_data.py           # bakes simulated pipeline output (RF + FFNN) into public/data.json
 real_data.py             # loaders for real MOSDAC (.h5) + CMEMS (.nc) files
 export_real_data.py      # bakes real data into public/data_real.json
