@@ -362,6 +362,296 @@ cited for flavor:
         reported as-is, not hidden or tuned away.
 
 
+1c. SOLUTION ARCHITECTURE, PROPOSED PIPELINE & MATHEMATICAL FORMULATION
+    (added 2026-08-28 -- a single self-contained technical + theoretical
+    reference, consolidating the solution design and every equation
+    actually implemented, so this doesn't need to be pieced together
+    from scattered notes elsewhere in this file)
+--------------------------------------------------------------------------------
+
+A. SOLUTION OVERVIEW
+--------------------
+The ocean has a "surface" and an "interior." Satellites densely observe
+the surface (SST, salinity, height, currents, winds) every day, globally.
+The interior (subsurface temperature at depth) is what actually matters
+for heat content, thermoclines, and marine heatwaves, but it is only
+directly measured by sparse, expensive in-situ instruments (Argo floats,
+buoys, gliders). Sea Green's solution is a learned mapping
+
+    f_theta : X_surface(t, r)  ->  T(z, t, r)
+
+where X_surface is the vector of surface observations at time t and
+horizontal position r, T(z, t, r) is temperature at depth z, and theta
+are the parameters of a trained model. Seven different parameterizations
+of f_theta were built and benchmarked (Section E below) so the choice of
+architecture is an empirical result, not an assumption.
+
+B. PROPOSED PIPELINE (data flow, end to end)
+---------------------------------------------
+    [1] SOURCE DATA
+         |-- Real: MOSDAC INSAT-3DR (SST), CMEMS thetao/so/uo,vo/chl
+         |         (SST, SSS, currents, chlorophyll), CMEMS thetao
+         |         multi-depth extract (REAL subsurface target, added
+         |         2026-08-27/28 -- see Section 1d)
+         |-- Simulated (where no real source exists yet): SSH/SLA, winds
+         |
+         v
+    [2] HARMONIZATION / PREPROCESSING
+         |-- Variable-name-based file resolution (real_data.py), robust
+         |   to browser-renamed downloads
+         |-- Fill-value masking, scale/offset decoding (MOSDAC HDF5)
+         |-- Daily resampling (6-hourly -> daily mean where needed)
+         |-- Genuine regridding to the spec's 0.25 deg via
+         |   xarray.coarsen().mean() (real_data.py: _regrid_to_target())
+         |-- Nearest-neighbor depth matching to the 15 standard levels
+         |   (real_training.py: DEPTH_MATCH, see Section D.3)
+         v
+    [3] FEATURE ENGINEERING
+         |-- Wind stress curl (Ekman pumping proxy) from u/v wind
+         |-- Spatiotemporal clustering (adaptive regions, feeds models
+         |   as a categorical feature)
+         |-- Vertical + temporal clustering (depth-band / heatwave-phase
+         |   sub-blocks, used in the clustering EXPERIMENT, see Section 2)
+         v
+    [4] EMBEDDING / RECONSTRUCTION MODELS  (Section E)
+         Seven architectures, all mapping surface features -> 15-depth
+         profile: Random Forest, FFNN, CNN, ViT, GNN, Autoencoder, LSTM
+         v
+    [5] EVALUATION
+         Time-based train/test split (chronological, no leakage), scored
+         by RMSE, Pearson correlation, and bias per depth (Section G)
+         v
+    [6] DEPLOYMENT
+         Static dashboard (Vercel, public/data.json baked offline) +
+         Streamlit app (Hugging Face Spaces fallback) -- both read the
+         same underlying pipeline
+
+C. HOW EACH PROBLEM-STATEMENT REQUIREMENT IS TACKLED
+------------------------------------------------------
+(Cross-reference: Section 1a has the scorecard; this is the "how", not
+just the "how much".)
+
+  1. Preprocessing/harmonization -> real_data.py's per-source loaders +
+     a shared _regrid_to_target() regridding function, called uniformly
+     across SST/SSS/currents/chlorophyll.
+  2. 0.25 deg / daily standardization -> block-mean coarsening (see D.1)
+     for real CMEMS grids; daily resampling for all time series.
+  3. Five input variables -> real for SST/SSS/currents (CMEMS/MOSDAC
+     direct); synthetic-but-structurally-correct for winds (real 2D u/v
+     + derived curl, formula-generated); SSH/SLA not yet sourced.
+  4. Compact satellite embeddings -> CNN (conv+pool), ViT (self-
+     attention over patch tokens), Autoencoder (unsupervised bottleneck),
+     GNN (graph convolution over a spatial k-NN graph) -- four distinct
+     ways of compressing surface state into a latent vector before
+     regression, per Section E.
+  5. Train reconstruction model(s) -> all seven trained under an
+     IDENTICAL protocol (Section F/G) for apples-to-apples comparison.
+  6. Reconstruct at 15 standard depths -> DEPTH_LEVELS /
+     STANDARD_DEPTHS constants match the spec exactly in both the
+     synthetic (ocean_pipeline_demo.py) and real (real_training.py)
+     pipelines.
+  7. Evaluate vs. independent obs + RMSE/correlation/bias -> all three
+     metrics computed per depth per model (Section G); "independent"
+     satisfied via a strict chronological held-out split; validation
+     against REAL held-out points now exists too (Section 1d/real
+     training), not just synthetic held-out points.
+
+D. PREPROCESSING MATHEMATICS
+------------------------------
+D.1 Spatial regridding (block-mean coarsening to 0.25 deg):
+
+    T_coarse(i,j) = (1/(f_lat * f_lon)) * sum_{a=0}^{f_lat-1} sum_{b=0}^{f_lon-1}
+                       T_native(f_lat*i + a, f_lon*j + b)
+
+    where f_lat = f_lon = round(0.25 / native_grid_step) (=3 for the
+    0.083 deg CMEMS grid, verified to land the output exactly on 0.25 deg
+    spacing). Implemented via xarray.coarsen(...).mean() -- genuine
+    spatial averaging, not decimation/pixel-skipping.
+
+D.2 Wind stress curl (Ekman-pumping proxy, central finite differences):
+
+    curl = dv/dx - du/dy
+    dv/dx ~= (v[:, j+1] - v[:, j-1]) / (2*dx),  dx = dlon*111000*cos(lat)
+    du/dy ~= (u[i+1, :] - u[i-1, :]) / (2*dy),  dy = dlat*111000
+
+D.3 Standard-depth matching (real subsurface target):
+
+    z_matched(z_std) = argmin_{z_native} | z_native - z_std |
+
+    Applied per element of STANDARD_DEPTHS = [0,5,10,20,30,50,75,100,
+    125,150,200,300,500,700,1000] against the 35 native CMEMS levels
+    actually downloaded (0.49m to 902.34m). The deepest standard level
+    (1000m) has no native level available within the pulled range, so it
+    resolves to the deepest available native level (~902m) -- an
+    approximation, stated plainly, not hidden.
+
+D.4 Spatiotemporal clustering (adaptive regions, weighted K-means):
+
+    minimize_{C_1..C_k}  sum_k sum_{x in C_k} || w (element-wise*) (x - mu_k) ||^2
+
+    feature vector x = (lat, lon, day, ssh), weights w = (1.0, 1.0, 0.3,
+    1.0). `day` is deliberately downweighted to 0.3x: at full weight it
+    dominates single-day map-frame assignment (day is constant within a
+    frame, causing degenerate clusters -- verified empirically, see
+    Section 2).
+
+E. MODEL ARCHITECTURES (all seven, exact formulation)
+---------------------------------------------------------
+Let x in R^d denote the surface feature vector for one profile (d=10 for
+the synthetic pipeline's feature set, d=7 for the real pipeline's, since
+real data lacks wind/curl/SSH -- see Section 1d). Let y in R^15 denote
+the true temperature at the 15 standard depths, and y_hat the prediction.
+
+E.1 Random Forest (classical baseline, non-parametric):
+    y_hat = (1/n_trees) * sum_{t=1}^{n_trees} Tree_t(x)
+    Each Tree_t trained on a bootstrap resample with random feature
+    subsets at each split (standard bagging + feature randomization).
+    n_estimators=200, max_depth=8.
+
+E.2 FFNN (feedforward neural network):
+    h = ReLU(W1 x + b1),  h2 = ReLU(W2 h + b2),  y_hat = W3 h2 + b3
+    2 hidden layers, 32 units each. This is the headline model on
+    synthetic data (Section 2 item 4).
+
+E.3 CNN (satellite-patch embedding):
+    Given a (C, 5, 5) spatial patch P centered on the profile's (lat,lon)
+    (C=4 channels: sst, ssh, sss, curl for synthetic; sst, sss, uo, vo
+    for real):
+        F1 = ReLU(Conv2d_{3x3}(P)),  F2 = ReLU(Conv2d_{3x3}(F1))
+        e  = GlobalAvgPool(F2)                      <- the "embedding"
+        y_hat = Head([e ; day])
+    e is a genuine compact latent representation of the surface patch --
+    the closest thing in this repo to the spec's "satellite embeddings".
+
+E.4 ViT (attention-based hybrid, same patch input as the CNN):
+    Each of the 25 patch cells is a token: z_i = W_e x_i + p_i (learned
+    position embedding p_i). One TransformerEncoder layer:
+        Attention(Q,K,V) = softmax(QK^T / sqrt(d_k)) V
+    embedding e = mean_i( TransformerEncoder(z)_i )   (mean-pool, no CLS
+    token, kept simple). y_hat = Head([e ; day]).
+    Isolates "attention vs. convolution" as the only variable vs. E.3,
+    since both read the identical normalized patch tensor.
+
+E.5 Autoencoder (unsupervised embedding, two-stage):
+    Stage 1 (no labels used at all):
+        z = Encoder(x),  x_hat = Decoder(z)
+        L_pretrain = || x_hat - x ||^2   (reconstruction only)
+    Stage 2 (encoder frozen):
+        y_hat = Regressor(z)
+    Tests whether an embedding that never saw the target even helps,
+    vs. every other model's fully end-to-end supervised training.
+
+E.6 GNN (2-layer Graph Convolutional Network + self-feature skip):
+    Nodes = all profiles (train+test, transductive). Edges = each node's
+    k=6 nearest neighbors by (lat,lon) distance (symmetrized). Standard
+    GCN propagation (Kipf & Welling, 2017):
+        A_hat = D^{-1/2} (A + I) D^{-1/2}          (normalized, self-looped)
+        H1 = ReLU(A_hat X W1)
+        H2 = ReLU(A_hat H1 W2)
+        y_hat = Head([ H2 ; ReLU(W_self X) ])       <- skip pathway
+    The skip pathway was ADDED after diagnosing over-smoothing (plain
+    GCN scored 0.526 RMSE on synthetic data; with the skip, 0.335 --
+    see Section 2 item 4 for the full diagnosis).
+
+E.7 LSTM (depth-sequence decoder):
+    h0 = ReLU(W_enc x)                              (one encoding of x)
+    For step i = 1..15 (one per standard depth), input to the LSTM cell
+    is [h0 ; depth_position_i] (depth_position_i = z_i / max(z)):
+        (h_i, c_i) = LSTMCell([h0 ; depth_position_i], h_{i-1}, c_{i-1})
+        y_hat_i = W_out h_i
+    Standard LSTM gate equations govern each cell:
+        f_i = sigma(W_f [h_{i-1}, input_i] + b_f)     (forget gate)
+        i_i = sigma(W_i [h_{i-1}, input_i] + b_i)     (input gate)
+        o_i = sigma(W_o [h_{i-1}, input_i] + b_o)     (output gate)
+        c~_i = tanh(W_c [h_{i-1}, input_i] + b_c)
+        c_i = f_i * c_{i-1} + i_i * c~_i
+        h_i = o_i * tanh(c_i)
+
+F. LOSS FUNCTIONS
+--------------------
+F.1 Standard training loss (used by default, all models):
+        L = (1/N) sum_i (y_hat_i - y_i)^2                  (MSE)
+
+F.2 Knowledge-informed depth-gradient loss (CGKDN-inspired, OPTIONAL,
+    off by default -- `use_depth_grad=True` flag on every train_*()
+    function in dl_pipeline.py):
+        grad_hat_i = y_hat_{i+1} - y_hat_i,   grad_i = y_{i+1} - y_i
+        L = lambda_reg * MSE(y_hat, y) + lambda_grad * MSE(grad_hat, grad)
+        lambda_reg = 1.0, lambda_grad = 0.5
+    Tested honestly: HURTS on synthetic data (0.328 -> 0.339 on FFNN)
+    because the synthetic profiles come from one smooth formula with no
+    genuine per-depth heterogeneity for the gradient term to exploit.
+    Kept as an option because real, heterogeneous ocean data is expected
+    to benefit from it (per Wang et al. 2024's own reported results).
+
+G. EVALUATION METRICS (computed per depth, per model, identical for all)
+----------------------------------------------------------------------
+    RMSE = sqrt( (1/N) sum_i (y_i - y_hat_i)^2 )
+    r (Pearson correlation) = Cov(y, y_hat) / (sigma_y * sigma_yhat)
+    Bias = (1/N) sum_i (y_hat_i - y_i)
+
+H. TRAINING PROTOCOL
+------------------------
+    - Chronological (time-based) train/test split, NOT random: sort all
+      profiles by day, take the first 75% as train, last 25% as test.
+      Prevents leakage from near-duplicate nearby-in-time profiles
+      landing on both sides of the split. Implemented once
+      (time_based_split() in ocean_pipeline_demo.py) and reused by every
+      model so all seven see the IDENTICAL test set.
+    - Adam optimizer, initial lr=1e-2, StepLR decay (gamma=0.3 every
+      ~1/3 of total epochs), 300 epochs, full-batch (datasets are small
+      enough -- hundreds of rows -- that mini-batching isn't needed).
+    - Every torch model call self-seeds (torch.manual_seed) so results
+      don't depend on which order models happen to be trained in within
+      a script (verified: FFNN's synthetic-data RMSE is bit-identical
+      regardless of training order).
+
+I. RESULTS SUMMARY (both tracks; full detail in Section 2 and 1d)
+---------------------------------------------------------------------
+    SYNTHETIC (600 profiles, physically-motivated formula):
+        Naive baseline  0.710   Random Forest  0.339   FFNN  0.328 <-best
+        CNN 0.340   ViT 0.334   GNN 0.335   LSTM 0.359   Autoencoder 0.440
+
+    REAL (800 profiles sampled from actual CMEMS/MOSDAC data, 600 train
+    / 200 test -- see Section 1d for the full milestone writeup):
+        Naive baseline  2.055   Random Forest  0.761 <-best   GNN  0.770
+        FFNN 0.853   LSTM 1.055   Autoencoder 1.152   ViT 1.150   CNN 1.195
+
+    Both tracks: every model beats its baseline by 38-63%. The BEST
+    architecture flips between tracks (FFNN wins synthetic; RF/GNN win
+    real) -- an honest, explainable finding about model behavior at
+    different data scales/heterogeneity, not an inconsistency to paper
+    over.
+
+J. FUTURE SCOPE (prioritized; supersedes/consolidates Section 6 below)
+---------------------------------------------------------------------
+  Highest priority:
+    - Wire the REAL-trained models (Section 1d) into the live dashboard
+      and Streamlit app -- currently verified working standalone
+      (real_training.py) but not yet reflected in public/data.json.
+    - Increase real training sample count beyond 800 (more valid-ocean
+      points = better statistics, especially for the data-hungry
+      patch-based CNN/ViT, which underperformed specifically because of
+      limited real N).
+    - Source real SSH/SLA (CMEMS zos) and real winds (ASCAT/OSCAT/ERA5)
+      to close the last two synthetic-only input variables.
+  Rounds out the spec:
+    - Real regridding of the SYNTHETIC pipeline's map grid to 0.25 deg
+      (currently 1.0 deg, a deliberate size/speed tradeoff).
+    - Real independent Argo profiles (via argopy, once its build issue
+      is resolved, or INCOIS LAS) for true independent-observation
+      validation distinct from the held-out CMEMS-derived test split.
+    - Full K-means-clustering + Transformer + knowledge-distillation
+      architecture from Wang et al. 2024 (CGKDN) -- only its depth-
+      gradient loss piece was implemented; the full clustering+KD
+      framework was not attempted (substantially larger undertaking).
+  Polish:
+    - A proper regridded raster/heatmap instead of a scatter-point map,
+      once 0.25 deg is used throughout both tracks.
+    - Bring streamlit_app.py to full parity with the dashboard's real-
+      data monitoring tab.
+
+
 2. HONEST STATUS: WHAT'S ACTUALLY BUILT VS. THE SPEC
 --------------------------------------------------------------------------------
 This was built in a ~2 hour sprint with a hard deadline, starting from an
