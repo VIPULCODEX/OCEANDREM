@@ -10,11 +10,12 @@ These are real satellite / reanalysis products, not synthetic -- unlike
 ocean_pipeline_demo.py, which stays a physically-motivated simulation used
 to validate the ML + heatwave-detection logic end to end (see README for why).
 
-Run `python export_real_data.py` after adding/refreshing files here to
-regenerate public/data_real.json.
+Run `python real/export_real_data.py` after adding/refreshing files in
+real/data/ to regenerate public/data_real.json.
 """
 import glob
 import os
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -25,7 +26,12 @@ LON_RANGE = (45, 105)
 
 HEATWAVE_CATEGORIES = [(0.5, "Watch"), (1.0, "Warning"), (1.5, "Severe"), (2.0, "Extreme")]
 
-MOSDAC_DIR = "MOSDAC"
+# Raw source files live in real/data/ (gitignored -- large, regenerate
+# locally). Resolved relative to this module's own location, not the
+# caller's working directory, so it works regardless of where a script
+# that imports this is invoked from.
+DATA_DIR = Path(__file__).resolve().parent / "data"
+MOSDAC_DIR = str(DATA_DIR / "MOSDAC")
 
 TARGET_RESOLUTION_DEG = 0.25  # the problem statement's required spatial resolution
 
@@ -64,7 +70,7 @@ def _classify(anomaly):
 
 
 def _find_cmems_dataset(varname):
-    for path in sorted(glob.glob("*.nc")):
+    for path in sorted(glob.glob(str(DATA_DIR / "*.nc"))):
         try:
             ds = xr.open_dataset(path)
         except Exception:
@@ -72,7 +78,7 @@ def _find_cmems_dataset(varname):
         if varname in ds.data_vars:
             return ds, path
         ds.close()
-    raise FileNotFoundError(f"No .nc file in {os.getcwd()} contains variable '{varname}'")
+    raise FileNotFoundError(f"No .nc file in {DATA_DIR} contains variable '{varname}'")
 
 
 def load_cmems_series(varname="thetao", stride=2):

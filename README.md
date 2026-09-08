@@ -4,7 +4,7 @@
 
 Argo floats measure subsurface temperature directly but are sparse in space and time. Satellites see the surface (SST, SSH, salinity, wind) continuously and everywhere. This pipeline trains a neural network (FFNN) to learn the surface → subsurface relationship, so subsurface structure can be estimated anywhere in the basin — and tracks basin-wide SST anomaly against climatology to flag marine heatwave events (Hobday-style categories: Watch / Warning / Severe / Extreme).
 
-Surface wind is modeled as true 2D u/v components plus a derived **wind stress curl** field — the specific extra input Xie et al. 2022 ("Attention U-Net" for SCS subsurface reconstruction, IEEE TGRS) found to be their single biggest accuracy lever below ~50 m (it drives Ekman pumping, which changes thermocline depth). Verified on our own data: adding curl measurably helped the spatially-aware models (CNN, ViT) and the sequential one (LSTM), while leaving the flat-feature FFNN essentially unchanged — matching the paper's own finding that this input only pays off for models that can use spatial structure. An optional "adaptive depth-gradient" loss term (`DepthGradientLoss` in `dl_pipeline.py`, `use_depth_grad=True`) is also available, inspired by Wang et al. 2024's knowledge-informed CGKDN model — tested and found not to help on this synthetic data, off by default, documented honestly in `PROJECT_REPORT.txt` §1b/§2.
+Surface wind is modeled as true 2D u/v components plus a derived **wind stress curl** field — the specific extra input Xie et al. 2022 ("Attention U-Net" for SCS subsurface reconstruction, IEEE TGRS) found to be their single biggest accuracy lever below ~50 m (it drives Ekman pumping, which changes thermocline depth). Verified on our own data: adding curl measurably helped the spatially-aware models (CNN, ViT) and the sequential one (LSTM), while leaving the flat-feature FFNN essentially unchanged — matching the paper's own finding that this input only pays off for models that can use spatial structure. An optional "adaptive depth-gradient" loss term (`DepthGradientLoss` in `models/dl_pipeline.py`, `use_depth_grad=True`) is also available, inspired by Wang et al. 2024's knowledge-informed CGKDN model — tested and found not to help on this synthetic data, off by default, documented honestly in `PROJECT_REPORT.txt` §1b/§2.
 
 The dashboard (`public/`) is organized as four tabs: **Live Monitor** (real current data), **The Model** (the reconstruction demo), **Results** (metrics/claims), **How it Works** (methodology, for anyone who wants the detail — kept out of the way of the main flow).
 
@@ -14,13 +14,13 @@ The dashboard (`public/`) is organized as four tabs: **Live Monitor** (real curr
 > **The Model** and **Results** tabs (Argo floats, subsurface reconstruction, RMSE)
 > run on a physically-motivated simulation with an injected heatwave event, since a
 > real multi-depth Argo/subsurface pull wasn't available for this build. Real-data
-> hooks for that half are already wired in `ocean_pipeline_demo.py`.
+> hooks for that half are already wired in `synthetic/ocean_pipeline_demo.py`.
 
 ## The models
 
-`dl_pipeline.py` trains **seven independent models** on the synthetic Argo dataset,
+`models/dl_pipeline.py` trains **seven independent models** on the synthetic Argo dataset,
 all on the *identical* time-based train/test split (`time_based_split()` in
-`ocean_pipeline_demo.py`) for a fair comparison — all seven (plus a naive baseline)
+`synthetic/ocean_pipeline_demo.py`) for a fair comparison — all seven (plus a naive baseline)
 are shown side by side in the dashboard's Results tab. This covers every
 architecture family the problem statement names (CNN, ViT, Autoencoder, GNN,
 attention-hybrid via ViT):
@@ -64,7 +64,7 @@ all six neural nets and why each lands where it does on this synthetic data.
 We also tried to replicate the *actual* headline method from Loo et al. 2026
 (arXiv:2605.00860) — cluster by depth-band and time-phase, then train a separate
 small network per cluster, instead of one pooled network. On our synthetic data
-this made results *worse*, not better (see `dl_pipeline.py`'s module docstring and
+this made results *worse*, not better (see `models/dl_pipeline.py`'s module docstring and
 `PROJECT_REPORT.txt` for the full writeup and why: too little data per cluster,
 and our synthetic generator uses one smooth formula for the whole depth profile,
 so there's no genuine per-depth heterogeneity for the clustering to exploit). This
@@ -77,21 +77,21 @@ that method pays off, not a bug we're pretending isn't there.
 |---|---|---|
 | Stack | Plain HTML/CSS/JS + Plotly.js (CDN) | Streamlit |
 | Deploy target | **Vercel** (zero server, reads a pre-baked `data.json`) | **Hugging Face Spaces** (or any host that runs Python) — use this if the dashboard needs to run the model live / interactively, or if Vercel's function memory limits become an issue |
-| Data | Snapshot exported by `export_data.py` | Computed live on each run (cached per session) |
+| Data | Snapshot exported by `synthetic/export_data.py` | Computed live on each run (cached per session) |
 
-Both read from the same source of truth: `ocean_pipeline_demo.py`.
+Both read from the same source of truth: `synthetic/ocean_pipeline_demo.py`.
 
 ### Static dashboard → Vercel
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python export_data.py        # (re)builds public/data.json from the pipeline
+python -m synthetic.export_data        # (re)builds public/data.json from the pipeline
 ```
 
 Then push this repo to GitHub and import it in Vercel — `vercel.json` already points `outputDirectory` at `public/`, so it's a zero-config static deploy. No serverless functions, no build step, no cold starts.
 
-To refresh the dashboard with new results, re-run `export_data.py` and commit the updated `public/data.json`.
+To refresh the dashboard with new results, re-run `python -m synthetic.export_data` and commit the updated `public/data.json`.
 
 ### Full interactive app → Hugging Face Spaces (or local)
 
@@ -103,13 +103,18 @@ For a Space: pick the **Streamlit** SDK, point it at this repo, and it picks up 
 
 ## Real data: MOSDAC + CMEMS
 
-`real_data.py` reads two real datasets and `export_real_data.py` bakes them into
-`public/data_real.json` (committed; the raw source files are not — they're
-100s of MB and gitignored):
+`real/real_data.py` reads two real datasets from `real/data/` and
+`real/export_real_data.py` bakes them into `public/data_real.json`
+(committed; the raw source files are not — they're 100s of MB and
+gitignored). Provenance for every raw file (product ID, institution,
+coverage, checksum) is committed anyway, in `real/PROVENANCE.md` +
+`real/data/CHECKSUMS.sha256` — so the real-data claim is independently
+verifiable from the repo alone, without needing the multi-GB files
+themselves.
 
-- **MOSDAC** — `MOSDAC/*.h5`, INSAT-3DR L2B SST (ISRO/SAC), half-hourly, 25 Aug 2026.
-  8 evenly-spaced real passes, cropped to the study region, drive the "Live
-  Satellite Pass" panel.
+- **MOSDAC** — `real/data/MOSDAC/*.h5`, INSAT-3DR L2B SST (ISRO/SAC),
+  half-hourly, 25 Aug 2026. 8 evenly-spaced real passes, cropped to the
+  study region, drive the "Live Satellite Pass" panel.
 - **CMEMS**, all `GLOBAL_ANALYSISFORECAST_PHY_001_024` / `_BGC_001_028`
   (Mercator Ocean), 1–27 Aug 2026, single near-surface level (~0.49 m):
   - `thetao` (SST) and `so` (SSS) — daily-mean basin trend + live status chip.
@@ -132,12 +137,17 @@ resolution) and the synthetic pipeline's map grid (still 1.0°, a deliberate
 size/speed tradeoff) are not yet regridded — see `PROJECT_REPORT.txt` §2
 item 2 for the honest full picture.
 
-To refresh with new files, drop them in `MOSDAC/` / the repo root and re-run:
+To refresh with new files, drop them in `real/data/MOSDAC/` / `real/data/`
+and re-run:
 
 ```bash
 pip install h5py xarray netCDF4   # only needed for this step
-python export_real_data.py
+python -m real.export_real_data
 ```
+
+Then regenerate `real/data/CHECKSUMS.sha256` and update `real/PROVENANCE.md`
+(commands in that file) so the provenance record stays in sync with the
+files that actually produced `data_real.json`.
 
 Note this file only has one depth level, so it can't feed the multi-depth
 subsurface reconstruction — that's why the ML/heatwave-detection demo still
@@ -149,12 +159,17 @@ sprint.
 
 ## Going live with real data (subsurface reconstruction)
 
-Two integration points in `ocean_pipeline_demo.py`, both currently gated behind `USE_SYNTHETIC_DATA = True`:
+Two integration points in `synthetic/ocean_pipeline_demo.py`, both currently gated behind `USE_SYNTHETIC_DATA = True`:
 
 - **`get_argo_data()`** — real Argo profiles via [`argopy`](https://argopy.readthedocs.io/): `DataFetcher().region([lon_min, lon_max, lat_min, lat_max, depth_min, depth_max, start, end])`.
 - **`get_satellite_grid()`** — real surface fields. For the Indian Ocean specifically, swap in **MOSDAC / ISRO** INSAT-3D/3DR SST and OSCAT wind products (or Copernicus Marine as a global fallback).
 
-Flip the flag, fill in the two commented API calls, re-run `export_data.py` (or just run `streamlit_app.py` directly) — everything downstream (training, metrics, heatwave detection, clustering, all charts) is unchanged.
+Flip the flag, fill in the two commented API calls, re-run `python -m synthetic.export_data` (or just run `streamlit_app.py` directly) — everything downstream (training, metrics, heatwave detection, clustering, all charts) is unchanged.
+
+(Separately, `real/real_training.py` already trains all 7 models on genuine
+real surface + real subsurface data — see `PROJECT_REPORT.txt` §1d. Wiring
+its output into the dashboard, instead of `synthetic/export_data.py`'s
+synthetic-trained models, is the next step, tracked in §1c section J.)
 
 ## Methodology notes
 
@@ -166,18 +181,42 @@ Flip the flag, fill in the two commented API calls, re-run `export_data.py` (or 
 
 ## Repo layout
 
+Split into `synthetic/` and `real/` on purpose, so it's unambiguous from the
+directory structure alone — not just a README claim — which code path
+produces which numbers. `models/` is shared by both (identical architecture
+code, different data feeding it).
+
 ```
-ocean_pipeline_demo.py   # simulated data layer, heatwave detection, clustering, RF baseline, training/eval
-dl_pipeline.py           # all 6 neural nets (FFNN headline, CNN, ViT, GNN, Autoencoder, LSTM) + the depth/time clustering experiment
-export_data.py           # bakes simulated pipeline output (RF + FFNN) into public/data.json
-real_data.py             # loaders for real MOSDAC (.h5) + CMEMS (.nc) files
-export_real_data.py      # bakes real data into public/data_real.json
-streamlit_app.py         # Streamlit UI (full interactive app) -- NOTE: still RF-only, not yet updated to the FFNN
-public/                  # static dashboard (index.html / style.css / app.js / data*.json) — deploy target for Vercel
-vercel.json              # points Vercel at public/
-.streamlit/config.toml   # Sea Green theme for the Streamlit app
+synthetic/                       # [SIMULATED] everything trained/evaluated on the physically-motivated simulation
+  ocean_pipeline_demo.py           simulated data layer, heatwave detection, clustering, RF baseline, training/eval
+  export_data.py                   bakes simulated pipeline output (RF + FFNN + 5 more) into public/data.json
+  synthetic_argo_dataset.csv       historical artifact, not read by current code (see PROJECT_REPORT.txt §2)
+  ocean_pipeline_demo.png          historical artifact, not read by current code
+
+real/                            # [REAL] everything trained/evaluated on actual MOSDAC + CMEMS data
+  real_data.py                     loaders for real MOSDAC (.h5) + CMEMS (.nc) files -> public/data_real.json
+  real_training.py                 real (surface, subsurface) training pairs; trains all 7 models on real data
+  export_real_data.py              bakes real_data.py's output into public/data_real.json
+  data/                            raw source files (gitignored — 100s of MB to ~800 MB, regenerate locally)
+    MOSDAC/*.h5, *.nc
+    CHECKSUMS.sha256               sha256 of every raw file above, committed so integrity is checkable without the files
+  PROVENANCE.md                    source/product-ID/coverage/checksum record for every real file, + where the
+                                    actual validation authority is (CMEMS QUID / ISRO — not this repo, not an AI tool)
+
+models/
+  dl_pipeline.py                  all 6 neural nets (FFNN headline, CNN, ViT, GNN, Autoencoder, LSTM) + the
+                                   depth/time clustering experiment — shared architecture code, imported by
+                                   both synthetic/export_data.py and real/real_training.py
+
+streamlit_app.py                 Streamlit UI (full interactive app) -- NOTE: still RF-only, not yet updated to the FFNN
+public/                          static dashboard (index.html / style.css / app.js / data*.json) — deploy target for Vercel
+vercel.json                      points Vercel at public/
+.streamlit/config.toml           Sea Green theme for the Streamlit app
 requirements.txt
-MOSDAC/, cmems_*.nc       # real source files (gitignored — large, regenerate data_real.json locally)
 ```
+
+Every script under `synthetic/` or `real/` can be run either directly
+(`python synthetic/export_data.py`) or as a module from the repo root
+(`python -m synthetic.export_data`) — both work.
 
 Team **Sea Green**.

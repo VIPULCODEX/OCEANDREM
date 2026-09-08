@@ -3,22 +3,31 @@ Export a static JSON data bundle from the OceanEmbed pipeline for the
 Vercel-deployed static dashboard (public/data.json). Run this whenever the
 pipeline logic changes:
 
-    python export_data.py
+    python synthetic/export_data.py   (or: python -m synthetic.export_data)
 
 Keeps the site a plain static build (no server / API routes needed), which
 is what makes it trivially Vercel-compatible.
 """
 import json
+import sys
+from pathlib import Path
+
+# Repo root, so the sibling `models/` package is importable whether this
+# runs as `python synthetic/export_data.py` or `python -m synthetic.export_data`.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
 import numpy as np
 import pandas as pd
 
-from ocean_pipeline_demo import (
+from synthetic.ocean_pipeline_demo import (
     LAT_RANGE, LON_RANGE, DEPTH_LEVELS, N_DAYS, N_ARGO_PROFILES, N_CLUSTERS,
     USE_SYNTHETIC_DATA,
     get_satellite_grid, build_training_table, train_and_evaluate,
     marine_heatwave_series, spatiotemporal_clusters,
 )
-from dl_pipeline import (
+from models.dl_pipeline import (
     train_pooled_ffnn_and_evaluate, train_cnn_and_evaluate, train_lstm_and_evaluate,
     train_vit_and_evaluate, train_autoencoder_and_evaluate, train_gnn_and_evaluate,
 )
@@ -166,7 +175,7 @@ def main():
         "model_summary": model_summary,
     }
 
-    out_path = "public/data.json"
+    out_path = _REPO_ROOT / "public" / "data.json"
     with open(out_path, "w") as f:
         json.dump(bundle, f)
 

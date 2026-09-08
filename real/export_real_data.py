@@ -1,15 +1,24 @@
 """
 Bake real MOSDAC + CMEMS data into public/data_real.json for the static
-dashboard. Run after refreshing files in MOSDAC/ or the CMEMS .nc file:
+dashboard. Run after refreshing files in real/data/MOSDAC/ or the CMEMS
+.nc files:
 
-    python export_real_data.py
+    python real/export_real_data.py   (or: python -m real.export_real_data)
 
-The raw source files (MOSDAC/*.h5, cmems_*.nc) are large (100s of MB) and
-gitignored -- only this compact derived JSON is committed.
+The raw source files (real/data/MOSDAC/*.h5, real/data/*.nc) are large
+(100s of MB) and gitignored -- only this compact derived JSON is committed.
+See real/PROVENANCE.md for source/checksum metadata on those raw files.
 """
 import json
 import os
-from real_data import load_cmems_series, load_cmems_currents_series, load_mosdac_series
+import sys
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from real.real_data import load_cmems_series, load_cmems_currents_series, load_mosdac_series
 
 
 def main():
@@ -43,7 +52,7 @@ def main():
         "mosdac_frames": mosdac_frames,
     }
 
-    out_path = "public/data_real.json"
+    out_path = _REPO_ROOT / "public" / "data_real.json"
     with open(out_path, "w") as f:
         json.dump(bundle, f)
 

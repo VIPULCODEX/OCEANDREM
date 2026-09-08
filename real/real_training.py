@@ -25,12 +25,25 @@ NEAREST native level (see DEPTH_MATCH). The deepest native level actually
 available (given how the CMEMS subset was requested) is ~902m, so the
 "1000m" target uses ~902m as an approximation -- documented, not hidden.
 
-Run with: python real_training.py
+Run with: python real/real_training.py  (or: python -m real.real_training)
 """
 import glob
+import sys
+from pathlib import Path
+
+# Repo root, so `import models.dl_pipeline` (inside build_real_training_table
+# below) resolves whether this runs directly or as a module.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
 import numpy as np
 import pandas as pd
 import xarray as xr
+
+# Raw .nc source files live in real/data/, resolved relative to this
+# module's location (not the caller's working directory).
+DATA_DIR = Path(__file__).resolve().parent / "data"
 
 LAT_RANGE = (5, 30)
 LON_RANGE = (45, 99.9)  # capped where SST/SSS/currents actually have data
@@ -40,10 +53,10 @@ REAL_FEATURE_COLS = ["lat", "lon", "day", "sst", "sss", "uo", "vo"]
 
 def _find(pattern_contains_all):
     """Find the .nc file whose name contains all given substrings (case-sens)."""
-    for f in glob.glob("*.nc"):
+    for f in glob.glob(str(DATA_DIR / "*.nc")):
         if all(s in f for s in pattern_contains_all):
             return f
-    raise FileNotFoundError(f"No .nc file matching {pattern_contains_all}")
+    raise FileNotFoundError(f"No .nc file matching {pattern_contains_all} in {DATA_DIR}")
 
 
 def build_real_training_table(n_samples=800, seed=42, return_grids=False):
@@ -52,8 +65,8 @@ def build_real_training_table(n_samples=800, seed=42, return_grids=False):
     depths. n_samples random valid ocean (lat, lon, day) points, sampled
     from the actual data (not generated)."""
     thetao_path = _find(["thetao", "902"])  # the multi-depth file
-    sst_path = "Sea Surface temp.nc"
-    sss_path = "Sea surface salinity.nc"
+    sst_path = str(DATA_DIR / "Sea Surface temp.nc")
+    sss_path = str(DATA_DIR / "Sea surface salinity.nc")
     cur_path = _find(["phy-cur"])
 
     thetao = xr.open_dataset(thetao_path)["thetao"].sel(
@@ -195,7 +208,7 @@ def train_real_and_evaluate(X, Y, grids, frac=0.75):
     from sklearn.preprocessing import StandardScaler
     import torch
     import torch.nn as nn
-    import dl_pipeline as dlp
+    import models.dl_pipeline as dlp
 
     order = X["day"].argsort()
     X, Y = X.iloc[order].reset_index(drop=True), Y.iloc[order].reset_index(drop=True)

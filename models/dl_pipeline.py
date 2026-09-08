@@ -29,8 +29,18 @@ using the simplest of their six backbones (FFNN):
      pooled FFNN (one network, no clustering), and clustered FFNN
      (this framework) -- on the same held-out test set.
 
-Run with: python dl_pipeline.py
+Run with: python models/dl_pipeline.py  (or: python -m models.dl_pipeline)
 """
+import sys
+from pathlib import Path
+
+# Make the sibling `synthetic/` package importable regardless of whether
+# this file is run directly (python models/dl_pipeline.py) or as a module
+# (python -m models.dl_pipeline) -- both need the repo root on sys.path.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
 import numpy as np
 import pandas as pd
 import torch
@@ -41,7 +51,7 @@ from sklearn.neighbors import NearestNeighbors
 
 from sklearn.metrics import mean_squared_error
 
-from ocean_pipeline_demo import (
+from synthetic.ocean_pipeline_demo import (
     DEPTH_LEVELS, LAT_RANGE, LON_RANGE, GRID_STEP, RANDOM_SEED,
     build_training_table, train_and_evaluate, get_satellite_grid,
     time_based_split, marine_heatwave_series,

@@ -16,7 +16,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 import streamlit as st
 
-from ocean_pipeline_demo import (
+from synthetic.ocean_pipeline_demo import (
     USE_SYNTHETIC_DATA,
     LAT_RANGE,
     LON_RANGE,
@@ -27,7 +27,7 @@ from ocean_pipeline_demo import (
     train_and_evaluate,
     marine_heatwave_series,
 )
-from dl_pipeline import (
+from models.dl_pipeline import (
     train_pooled_ffnn_and_evaluate, train_cnn_and_evaluate, train_lstm_and_evaluate,
     train_vit_and_evaluate, train_autoencoder_and_evaluate, train_gnn_and_evaluate,
 )
