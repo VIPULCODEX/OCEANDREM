@@ -16,6 +16,12 @@ The dashboard (`public/`) is organized as four tabs: **Live Monitor** (real curr
 > real multi-depth Argo/subsurface pull wasn't available for this build. Real-data
 > hooks for that half are already wired in `synthetic/ocean_pipeline_demo.py`.
 
+> 📊 **New here? Start with [`DATASET.md`](DATASET.md)** — the exact
+> features used (vs. every candidate field available), a real 25-row
+> sample of the dataset each track trains on (committed, browsable
+> directly on GitHub), and precisely how satellite imagery feeds the
+> CNN/ViT ("compact satellite embedding") per the problem statement.
+
 ## The models
 
 `models/dl_pipeline.py` trains **seven independent models** on the synthetic Argo dataset,
@@ -213,6 +219,7 @@ public/                          static dashboard (index.html / style.css / app.
 vercel.json                      points Vercel at public/
 .streamlit/config.toml           Sea Green theme for the Streamlit app
 requirements.txt
+DATASET.md                       feature selection + satellite-embedding pipeline explained, with real sample data
 ```
 
 Every script under `synthetic/` or `real/` can be run either directly
