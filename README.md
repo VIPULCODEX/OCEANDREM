@@ -25,10 +25,7 @@ The dashboard (`public/`) is organized into four tabs: **Live Monitor** (real, c
 > track trains on, committed and browsable directly on GitHub; and
 > explains precisely how satellite imagery is converted into the
 > CNN/ViT "compact satellite embedding" required by the problem
-> statement. For the methodology behind that schema — how the data was
-> acquired, how it was preprocessed, and why specific features were
-> selected and compacted — see
-> [`TECHNICAL_APPROACH.md`](TECHNICAL_APPROACH.md).
+> statement.
 
 ## The models
 
@@ -158,7 +155,6 @@ vercel.json                      points Vercel at public/
 .streamlit/config.toml           Sea Green theme for the Streamlit app
 requirements.txt
 DATASET.md                       feature selection and the satellite-embedding pipeline, with real sample data
-TECHNICAL_APPROACH.md            methodology: data acquisition, preprocessing, and feature engineering
 ```
 
 Every script under `synthetic/` or `real/` can be run either directly (for example, `python synthetic/export_data.py`) or as a module from the repository root (for example, `python -m synthetic.export_data`); both invocation styles are supported.
