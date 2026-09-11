@@ -281,7 +281,9 @@ function startRealLoop() {
 
 function toggleRealPlay() {
   realPlaying = !realPlaying;
-  document.getElementById("realPlayBtn").textContent = realPlaying ? "⏸" : "▶";
+  document.getElementById("realPlayBtn").innerHTML = realPlaying
+    ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><line x1="10" x2="10" y1="4" y2="20"/><line x1="14" x2="14" y1="4" y2="20"/></svg>`
+    : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><polygon points="5,3 19,12 5,21"/></svg>`;
   startRealLoop();
 }
 
