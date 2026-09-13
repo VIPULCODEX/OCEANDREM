@@ -1,0 +1,829 @@
+/* ==========================================================================
+   Sea Green Design System for Streamlit
+   Mirrors the color tokens, glassmorphism, and styling from public/style.css
+   ========================================================================== */
+
+:root {
+  /* --- Colour tokens --- */
+  --bg: #071c19;
+  --bg-alt: rgba(12, 41, 37, 0.72);
+  --panel: rgba(10, 36, 32, 0.72);        /* translucent — lets ocean photo show through */
+  --panel-solid: #0f322d;                 /* solid fallback for non-blurred elements */
+  --panel-border: rgba(44, 95, 90, 0.55);
+  --sea: #2e8b57;
+  --sea-bright: #3fcf8e;
+  --text: #f4f7f6;        /* near-white — primary text on dark scrim */
+  --text-dim: #b8c9c5;    /* soft light gray-teal — secondary / muted text */
+  --normal: #3fcf8e;
+  --watch: #e3c23c;
+  --warning: #e58a3a;
+  --severe: #e2543f;
+  --extreme: #b5203a;
+
+  /* --- Typography tokens --- */
+  --font-body:    'Space Grotesk', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-display: 'Fraunces', 'Lora', Georgia, 'Times New Roman', serif;
+  --font-heading: 'Fraunces', 'Lora', Georgia, 'Times New Roman', serif;
+  --font-mono:    'IBM Plex Mono', 'Fira Code', 'Consolas', monospace;
+
+  /* --- Type scale (12 / 14 / 16 / 20 / 28 / 36 px) --- */
+  --text-xs:   12px;
+  --text-sm:   14px;
+  --text-base: 16px;
+  --text-lg:   20px;
+  --text-xl:   28px;
+  --text-2xl:  36px;
+
+  /* --- Unified Spacing Scale (4 / 8 / 12 / 16 / 24 / 32 px) --- */
+  --space-2xs: 4px;
+  --space-xs:  8px;
+  --space-sm:  12px;
+  --space-md:  16px;
+  --space-lg:  24px;
+  --space-xl:  32px;
+
+  /* --- Unified Card & Component Design System --- */
+  --card-radius:       18px;          /* Softer, warm, organic rounded curves */
+  --card-shadow:       0 10px 30px -4px rgba(0, 20, 16, 0.16), 0 4px 12px -2px rgba(0, 0, 0, 0.08); /* Soft diffused ambient shadow */
+  --card-shadow-hover: 0 16px 42px -4px rgba(0, 20, 16, 0.24), 0 6px 18px -2px rgba(0, 0, 0, 0.12);
+  --card-padding:      18px 24px;
+
+  /* Sub-element tokens */
+  --radius-sm:         8px;
+  --radius-pill:       999px;
+
+  /* Legacy alias kept for any remaining references */
+  --font: var(--font-body);
+
+  /* --- UI accent (matches config.toml primaryColor) --- */
+  --accent: #c0724a;   /* cmocean thermal warm amber — buttons, sliders, active tabs */
+}
+
+/* ---------- App Background — base fallback (real photo injected by Python at runtime) ---------- */
+[data-testid="stAppViewContainer"],
+.stApp {
+  background-color: #071c19 !important;   /* deep ocean fallback */
+  color: var(--text) !important;
+  font-family: var(--font-body) !important;
+  font-size: var(--text-base) !important;
+}
+
+[data-testid="stHeader"] {
+  background: transparent !important;
+}
+
+/* Main content container constraint & padding */
+.main .block-container {
+  max-width: 1320px !important;
+  padding-top: var(--space-lg) !important;
+  padding-bottom: var(--space-xl) !important;
+}
+
+/* ==========================================================================
+   TYPE SCALE UTILITIES
+   Use .sg-xs / .sg-sm / .sg-base / .sg-lg / .sg-xl / .sg-2xl on any element
+   ========================================================================== */
+.sg-xs   { font-size: var(--text-xs)   !important; }
+.sg-sm   { font-size: var(--text-sm)   !important; }
+.sg-base { font-size: var(--text-base) !important; }
+.sg-lg   { font-size: var(--text-lg)   !important; }
+.sg-xl   { font-size: var(--text-xl)   !important; }
+.sg-2xl  { font-size: var(--text-2xl)  !important; }
+
+/* Mono numeric class — apply to any stat/counter element */
+.sg-mono {
+  font-family: var(--font-mono) !important;
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: 'tnum' 1 !important;
+  letter-spacing: -0.01em;
+}
+
+/* ---------- Custom Brand Header Component ---------- */
+.sg-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-md);
+  margin-bottom: var(--space-xs);
+}
+
+/* Full-width separator drawn outside the column, via the banner margin */
+.sg-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--panel-border);
+  margin-bottom: var(--space-xs);
+  background-image: url("data:image/svg+xml,%3Csvg width='160' height='30' viewBox='0 0 160 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 15 Q 40 4, 80 15 T 160 15' fill='none' stroke='%233fcf8e' stroke-width='0.75' opacity='0.035'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: bottom;
+}
+
+.sg-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.sg-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--card-radius);
+  background: linear-gradient(135deg, var(--sea), var(--sea-bright));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 0 18px rgba(63, 207, 142, 0.45);
+  flex-shrink: 0;
+}
+
+.sg-title-group h1 {
+  font-family: var(--font-display) !important;
+  font-size: var(--text-2xl) !important;  /* 36px */
+  font-weight: 600;
+  font-optical-sizing: auto;
+  margin: 0;
+  letter-spacing: -0.015em;
+  background: linear-gradient(120deg, var(--text) 35%, var(--sea-bright));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+  line-height: 1.18;
+}
+
+.sg-title-group p {
+  font-family: var(--font-body) !important;
+  font-size: var(--text-sm) !important;  /* 14px */
+  margin: var(--space-2xs) 0 0;
+  color: var(--text-dim);
+  letter-spacing: 0.01em;
+  font-weight: 400;
+}
+
+.sg-badge-container {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.sg-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  color: var(--text);
+  box-shadow: var(--card-shadow);
+}
+
+.sg-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--sea-bright);
+  box-shadow: 0 0 8px var(--sea-bright);
+  animation: sg-pulse 1.4s infinite ease-in-out;
+  display: inline-block;
+}
+
+@keyframes sg-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.75); }
+}
+
+/* ---------- Soft Amber-Toned Plain-Text Note Card ---------- */
+.sg-note-card,
+.sg-banner {
+  background:
+    url("data:image/svg+xml,%3Csvg width='160' height='32' viewBox='0 0 160 32' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 16 Q 40 6, 80 16 T 160 16' fill='none' stroke='%23c0724a' stroke-width='0.75' opacity='0.04'/%3E%3C/svg%3E") repeat-x top right,
+    rgba(43, 35, 26, 0.65) !important; /* soft amber / warm sand */
+  border: 1px solid rgba(192, 114, 74, 0.35) !important;
+  border-left: 4px solid var(--accent) !important; /* soft warm amber */
+  color: var(--text) !important;
+  padding: var(--card-padding) !important;
+  border-radius: var(--card-radius) !important;
+  margin-bottom: var(--space-lg) !important;
+  box-shadow: var(--card-shadow) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+.sg-note-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: 6px;
+}
+
+.sg-note-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sg-note-title {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: #e5a77d; /* warm soft amber */
+  letter-spacing: 0.02em;
+}
+
+.sg-note-body {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.sg-note-body em {
+  font-style: italic;
+  color: var(--text);
+}
+
+/* Remove terminal monospace / neon-green look from code badges — plain text normal typography */
+.sg-note-card code,
+.sg-banner code,
+code {
+  background: transparent !important;
+  color: #e5a77d !important;
+  font-family: var(--font-body) !important;
+  font-size: inherit !important;
+  font-weight: 500 !important;
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* ---------- KPI Metric Cards — glassmorphic over ocean photo ---------- */
+[data-testid="stMetric"] {
+  background: rgba(10,30,26,0.65) !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+
+
+  border-radius: var(--card-radius) !important;
+  padding: var(--card-padding) !important;
+  box-shadow: var(--card-shadow) !important;
+  backdrop-filter: blur(12px) saturate(1.3) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(1.3) !important;
+  transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease !important;
+}
+
+[data-testid="stMetric"]:hover {
+  border-color: rgba(192, 114, 74, 0.45) !important;
+  box-shadow: var(--card-shadow-hover) !important;
+  transform: translateY(-2px) !important;
+}
+
+[data-testid="stMetricLabel"] {
+  font-family: var(--font-body) !important;
+  font-size: var(--text-xs) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.7px !important;
+  color: var(--text-dim) !important;
+  font-weight: 600 !important;
+}
+
+[data-testid="stMetricValue"] {
+  font-family: var(--font-mono) !important;
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: 'tnum' 1 !important;
+  font-size: var(--text-xl) !important;  /* 28px */
+  font-weight: 600 !important;
+  color: var(--text) !important;
+  letter-spacing: -0.02em;
+}
+
+[data-testid="stMetricDelta"] {
+  font-family: var(--font-mono) !important;
+  font-variant-numeric: tabular-nums !important;
+  font-size: var(--text-sm) !important;  /* 14px */
+  font-weight: 500 !important;
+}
+
+/* ---------- Streamlit Tabs ---------- */
+div[data-baseweb="tab-list"] {
+  gap: var(--space-xs) !important;
+  border-bottom: 1px solid var(--panel-border) !important;
+  padding-bottom: var(--space-2xs) !important;
+  margin-bottom: var(--space-lg) !important;
+}
+
+button[data-baseweb="tab"] {
+  background: transparent !important;
+  border: none !important;
+  font-family: var(--font-heading) !important;
+  color: var(--text-dim) !important;
+  font-size: var(--text-sm) !important;  /* 14px */
+  font-weight: 600 !important;
+  letter-spacing: -0.01em;
+  padding: 10px 18px !important;
+  border-radius: var(--card-radius) var(--card-radius) 0 0 !important;
+  transition: all 0.25s ease !important;
+}
+
+button[data-baseweb="tab"]:hover {
+  color: var(--text) !important;
+  background: rgba(192, 114, 74, 0.08) !important;
+}
+
+button[data-baseweb="tab"][aria-selected="true"] {
+  color: var(--accent) !important;
+}
+
+div[data-baseweb="tab-highlight"] {
+  background-color: var(--accent) !important;
+  box-shadow: 0 0 10px rgba(192, 114, 74, 0.6) !important;
+  height: 2px !important;
+}
+
+/* ---------- Inputs, Selectbox, Sliders & Tables (See-Through Transparent Glass) ---------- */
+div[data-baseweb="select"] > div {
+  background: rgba(10, 26, 44, 0.70) !important;
+  border: 1px solid rgba(100, 180, 255, 0.22) !important;
+  color: #ffffff !important;
+  border-radius: var(--card-radius) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+  backdrop-filter: blur(14px) saturate(1.3) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.3) !important;
+}
+
+div[data-baseweb="select"] > div:hover {
+  border-color: rgba(100, 180, 255, 0.5) !important;
+  box-shadow: 0 8px 30px rgba(10, 40, 80, 0.4) !important;
+}
+
+div[data-baseweb="popover"] {
+  background: rgba(8, 22, 38, 0.82) !important;
+  border: 1px solid rgba(100, 180, 255, 0.28) !important;
+  border-radius: var(--card-radius) !important;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(16px) saturate(1.4) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.4) !important;
+}
+
+div[role="slider"] {
+  background-color: var(--accent) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 8px rgba(192, 114, 74, 0.5) !important;
+}
+
+/* ---------- Dataframe & Tables (See-Through Transparent Glass) ---------- */
+[data-testid="stDataFrame"] {
+  background: rgba(10, 26, 44, 0.70) !important;
+  border: 1px solid rgba(100, 180, 255, 0.22) !important;
+  border-radius: var(--card-radius) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4), 0 0 24px rgba(10, 30, 60, 0.25) !important;
+  backdrop-filter: blur(14px) saturate(1.3) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.3) !important;
+  overflow: hidden !important;
+}
+
+/* ==========================================================================
+   TEXT — Universal light-on-dark sweep
+   Primary:   #f4f7f6  (near-white)       → var(--text)
+   Secondary: #b8c9c5  (soft gray-teal)   → var(--text-dim)
+   Rule: NO dark/black/gray text anywhere on the main background.
+   ========================================================================== */
+
+/* ── 1. Broad catch-all — every text node inherits light color ── */
+body,
+.stApp,
+[data-testid="stAppViewContainer"],
+[data-testid="stMainBlockContainer"],
+.main,
+.block-container,
+[data-testid="stVerticalBlock"],
+[data-testid="stHorizontalBlock"] {
+  color: var(--text) !important;
+}
+
+/* ── 2. All inline text elements ── */
+p, span, li, td, th, caption,
+label, legend, figcaption,
+div, section, article, aside {
+  font-family: var(--font-body) !important;
+  color: inherit;
+}
+
+/* ── 3. Headings — font + color ── */
+h1, h2,
+[data-testid="stHeadingWithActionElements"] h1,
+[data-testid="stHeadingWithActionElements"] h2 {
+  color: var(--text) !important;
+  font-family: var(--font-display) !important;
+  font-weight: 600 !important;
+  font-optical-sizing: auto;
+  letter-spacing: -0.015em;
+}
+
+h3, h4, h5, h6,
+[data-testid="stHeadingWithActionElements"] h3,
+[data-testid="stHeadingWithActionElements"] h4,
+[data-testid="stHeadingWithActionElements"] h5,
+[data-testid="stHeadingWithActionElements"] h6 {
+  color: var(--text) !important;
+  font-family: var(--font-body) !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em;
+}
+
+/* ── 4. Markdown body ── */
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stMarkdownContainer"] li,
+[data-testid="stMarkdownContainer"] span,
+[data-testid="stMarkdownContainer"] strong,
+[data-testid="stMarkdownContainer"] em {
+  color: var(--text) !important;
+}
+
+/* ── 5. Metric card — label, value, delta ── */
+[data-testid="stMetricLabel"],
+[data-testid="stMetricLabel"] * {
+  color: var(--text-dim) !important;
+}
+[data-testid="stMetricValue"],
+[data-testid="stMetricValue"] * {
+  color: var(--text) !important;
+}
+
+/* ── 6. Dataframe / table cells ── */
+[data-testid="stDataFrame"] td,
+[data-testid="stDataFrame"] th,
+[data-testid="stDataFrame"] span,
+[data-testid="stDataFrame"] div {
+  color: var(--text) !important;
+}
+
+/* ── 7. Select / dropdown text ── */
+div[data-baseweb="select"] span,
+div[data-baseweb="select"] div,
+div[data-baseweb="select"] input,
+div[data-baseweb="popover"] li,
+div[data-baseweb="popover"] span {
+  color: var(--text) !important;
+}
+
+/* ── 8. Tab button labels ── */
+button[data-baseweb="tab"],
+button[data-baseweb="tab"] span,
+button[data-baseweb="tab"] p {
+  color: var(--text-dim) !important;
+}
+button[data-baseweb="tab"]:hover {
+  color: var(--text) !important;
+}
+
+/* ── 9. Captions & helper text ── */
+.stCaption,
+[data-testid="stCaptionContainer"],
+[data-testid="stCaptionContainer"] * {
+  color: var(--text-dim) !important;
+}
+
+/* ── 10. Form labels — radio, checkbox, slider, number input ── */
+[data-testid="stWidgetLabel"],
+[data-testid="stWidgetLabel"] *,
+[data-testid="stRadio"] label,
+[data-testid="stCheckbox"] label,
+[data-testid="stSlider"] label,
+[data-testid="stNumberInput"] label,
+[data-testid="stTextInput"] label,
+[data-testid="stSelectbox"] label {
+  color: var(--text-dim) !important;
+}
+
+/* ── 11. Sidebar ── */
+[data-testid="stSidebar"],
+[data-testid="stSidebar"] * {
+  color: var(--text) !important;
+}
+
+/* ── 12. Expander header ── */
+[data-testid="stExpander"] summary,
+[data-testid="stExpander"] summary * {
+  color: var(--text) !important;
+}
+
+/* ── 13. Plotly chart axis labels / annotations rendered in SVG ── */
+.js-plotly-plot .plotly .xtick text,
+.js-plotly-plot .plotly .ytick text,
+.js-plotly-plot .plotly .annotation-text {
+  fill: var(--text) !important;
+}
+
+/* ---------- Tab Headers & SVG Icons ---------- */
+.tab-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+
+.tab-header h3 {
+  font-family: var(--font-heading) !important;
+  font-size: var(--text-lg) !important;  /* 20px */
+  font-weight: 600 !important;
+  color: var(--text) !important;
+  margin: 0 !important;
+  letter-spacing: -0.02em;
+}
+
+.sg-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.sg-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke: var(--sea-bright);
+  stroke-width: 1.5;
+  fill: none;
+}
+
+.sg-icon-alert svg {
+  width: 18px;
+  height: 18px;
+  stroke: var(--accent);
+  margin-right: var(--space-xs);
+  vertical-align: -3px;
+}
+
+/* ---------- Skeleton Metric Card Loading State ---------- */
+.skeleton-metric-card {
+  background: linear-gradient(160deg, rgba(255,255,255,0.06) 0%, rgba(10,36,32,0.68) 100%);
+  border: 1px solid rgba(63, 207, 142, 0.18);
+  border-radius: var(--card-radius);
+  padding: var(--card-padding);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: blur(12px) saturate(1.3);
+  -webkit-backdrop-filter: blur(12px) saturate(1.3);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 104px;
+  box-sizing: border-box;
+}
+
+.skeleton-bar {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(63, 207, 142, 0.16) 50%, rgba(255, 255, 255, 0.04) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.4s infinite ease-in-out;
+}
+
+.skeleton-bar-label {
+  width: 50%;
+  height: 12px;
+  margin-bottom: var(--space-xs);
+}
+
+.skeleton-bar-value {
+  width: 75%;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-2xs);
+}
+
+.skeleton-bar-sub {
+  width: 40%;
+  height: 11px;
+}
+
+@keyframes skeleton-pulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ---------- Hero Sparkline Column ---------- */
+/* Remove Streamlit's default bottom gap from the sparkline plotly container */
+[data-testid="stPlotlyChart"].sg-sparkline {
+  margin-bottom: 0 !important;
+}
+
+/* Ensure the right-side hero column is vertically aligned to centre */
+.sg-hero-right {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+}
+
+/* ---------- Sticky Topbar ---------- */
+[data-testid="stElementContainer"]:has(.sg-topbar) {
+  position: sticky;
+  top: 0;
+  z-index: 999;
+  background: transparent;
+}
+
+.sg-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  height: 40px;
+  max-height: 44px;
+  padding: 0 var(--space-md);
+  background: rgba(12, 41, 37, 0.85); /* low-contrast between --bg (#071c19) and --panel (#0f322d) */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(28, 74, 65, 0.6);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  font-family: var(--font-body);
+  color: var(--text-dim);
+  position: sticky;
+  top: 0;
+  z-index: 999;
+  margin-bottom: var(--space-md);
+}
+
+.sg-topbar-id {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.sg-topbar-sep {
+  color: var(--panel-border);
+  font-size: var(--text-base);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.sg-topbar-pitch {
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   PER-TAB THEME VARIATIONS (OCEAN-DEPTH PALETTE TINTS)
+   Each tab receives a distinct, thematic tint of the ocean-depth palette:
+   - Heatwave: Emerald & Seafoam marine glow
+   - Spatial: Lagoon Sage Teal surface tone
+   - Benchmarks: Warm Sandy Amber shallow water tone
+   - Profiles: Oceanic Teal column sounding tone
+   - Depth Scatter: Deep Abyssal Blue trench tone
+   ========================================================================== */
+
+/* --- Tab Buttons Accent & Indicator Variations --- */
+button[data-baseweb="tab"]:nth-of-type(1):hover { background: rgba(63, 207, 142, 0.08) !important; }
+button[data-baseweb="tab"]:nth-of-type(1)[aria-selected="true"] { color: var(--sea-bright) !important; }
+
+button[data-baseweb="tab"]:nth-of-type(2):hover { background: rgba(111, 168, 163, 0.12) !important; }
+button[data-baseweb="tab"]:nth-of-type(2)[aria-selected="true"] { color: #6fa8a3 !important; }
+
+button[data-baseweb="tab"]:nth-of-type(3):hover { background: rgba(192, 114, 74, 0.12) !important; }
+button[data-baseweb="tab"]:nth-of-type(3)[aria-selected="true"] { color: #c0724a !important; }
+
+button[data-baseweb="tab"]:nth-of-type(4):hover { background: rgba(79, 163, 227, 0.12) !important; }
+button[data-baseweb="tab"]:nth-of-type(4)[aria-selected="true"] { color: #4fa3e3 !important; }
+
+button[data-baseweb="tab"]:nth-of-type(5):hover { background: rgba(47, 111, 237, 0.12) !important; }
+button[data-baseweb="tab"]:nth-of-type(5)[aria-selected="true"] { color: #68a5fc !important; }
+
+/* Per-tab overrides removed in favor of unified sapphire glass container design system */
+
+/* ==========================================================================
+   STICKY TOPBAR — Font Size Increase & Box Removal
+   ========================================================================== */
+.sg-topbar {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 6px 0 !important;
+  margin-bottom: 12px !important;
+}
+
+.sg-topbar,
+.sg-topbar-id,
+.sg-topbar-pitch,
+.sg-topbar-sep {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* ==========================================================================
+   HERO SPARKLINE CARD — Transparent Container Override
+   ========================================================================== */
+.sg-sparkline-card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.sg-sparkline-card [data-testid="stPlotlyChart"] {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.sg-sparkline-caption {
+  color: #ffffff !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  margin-top: 4px !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* ==========================================================================
+   MAIN TAB PLOTLY CHARTS — See-Through Transparent Glass Cards
+   ========================================================================== */
+div[data-baseweb="tab-panel"] [data-testid="stPlotlyChart"] {
+  background: rgba(10, 26, 44, 0.70) !important;
+  border: 1px solid rgba(100, 180, 255, 0.22) !important;
+  border-radius: var(--card-radius) !important;
+  padding: 16px 20px !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4), 0 0 24px rgba(10, 30, 60, 0.25) !important;
+  backdrop-filter: blur(14px) saturate(1.3) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.3) !important;
+  margin-bottom: 16px !important;
+}
+
+div[data-baseweb="tab-panel"] [data-testid="stPlotlyChart"] .main-svg {
+  border-radius: 8px !important;
+}
+
+/* Custom graph caption cards for high text contrast */
+.sg-graph-caption {
+  background: rgba(10, 26, 44, 0.75) !important;
+  border: 1px solid rgba(100, 180, 255, 0.2) !important;
+  border-radius: 10px !important;
+  padding: 10px 16px !important;
+  margin-top: 10px !important;
+  margin-bottom: 16px !important;
+  color: #ffffff !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  font-family: var(--font-body) !important;
+  line-height: 1.5 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* ==========================================================================
+   SELECTBOX / POPOVER MENU — See-Through Transparent Glass & White Text
+   ========================================================================== */
+div[data-baseweb="popover"] {
+  background: rgba(8, 22, 38, 0.82) !important;
+  border: 1px solid rgba(100, 180, 255, 0.28) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(16px) saturate(1.4) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.4) !important;
+}
+
+div[data-baseweb="popover"] li,
+div[data-baseweb="popover"] ul,
+div[data-baseweb="popover"] div,
+div[data-baseweb="popover"] span,
+div[data-baseweb="select"] span,
+div[data-baseweb="select"] div,
+div[data-baseweb="select"] input {
+  color: #ffffff !important;
+  font-weight: 500 !important;
+}
+
+div[data-baseweb="popover"] li:hover,
+div[data-baseweb="popover"] li[aria-selected="true"] {
+  background-color: rgba(30, 85, 140, 0.65) !important;
+  color: #ffffff !important;
+}
+
+/* Enhanced SVG text styling for Plotly axes, titles, and legends — Crisp Pure White */
+.js-plotly-plot .plotly .xtick text,
+.js-plotly-plot .plotly .ytick text,
+.js-plotly-plot .plotly .gtitle,
+.js-plotly-plot .plotly .annotation-text,
+.js-plotly-plot .plotly .legendtext {
+  fill: #ffffff !important;
+  font-weight: 500 !important;
+}
+
