@@ -48,7 +48,7 @@ if CSS_FILE.exists():
 
 # ── Ocean photo background — injected as base64 data URI (no static server needed) ──
 import base64 as _b64
-_bg_path = Path(__file__).parent / "ocean_bg.jpg"
+_bg_path = Path(__file__).parent / "beautiful-shot-fishes-swimming-ocean.jpg"
 if _bg_path.exists():
     _bg_b64 = _b64.b64encode(_bg_path.read_bytes()).decode()
     st.markdown(
@@ -334,23 +334,23 @@ with _hero_right:
         yaxis=dict(visible=False, fixedrange=True),
         showlegend=False,
     )
-    st.plotly_chart(_fig_spark, use_container_width=True, config={"displayModeBar": False})
-    st.markdown('<p class="sg-sparkline-caption">30-day SST anomaly trend</p></div>', unsafe_allow_html=True)
+    # st.plotly_chart(_fig_spark, use_container_width=True, config={"displayModeBar": False})
+    # st.markdown('<p class="sg-sparkline-caption">30-day SST anomaly trend</p></div>', unsafe_allow_html=True)
 
-st.markdown(
-    f"""
-    <div class="sg-note-card">
-        <div class="sg-note-header">
-            <span class="sg-note-icon">{ICON_ALERT}</span>
-            <span class="sg-note-title">Demonstration Note &middot; Synthetic Data Pipeline</span>
-        </div>
-        <p class="sg-note-body">
-            Pipeline validated on simulated data (USE_SYNTHETIC_DATA = {USE_SYNTHETIC_DATA}). Real Argo and MOSDAC integration points are designated in <em>ocean_pipeline_demo.py</em> (see <em>get_satellite_grid</em> and <em>get_argo_data</em>). To activate real-time telemetry, toggle the configuration flag and initialize the <em>argopy</em> and <em>copernicusmarine</em> connectors.
-        </p>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+# st.markdown(
+#     f"""
+#     <div class="sg-note-card">
+#         <div class="sg-note-header">
+#             <span class="sg-note-icon">{ICON_ALERT}</span>
+#             <span class="sg-note-title">Demonstration Note &middot; Synthetic Data Pipeline</span>
+#         </div>
+#         <p class="sg-note-body">
+#             Pipeline validated on simulated data (USE_SYNTHETIC_DATA = {USE_SYNTHETIC_DATA}). Real Argo and MOSDAC integration points are designated in <em>ocean_pipeline_demo.py</em> (see <em>get_satellite_grid</em> and <em>get_argo_data</em>). To activate real-time telemetry, toggle the configuration flag and initialize the <em>argopy</em> and <em>copernicusmarine</em> connectors.
+#         </p>
+#     </div>
+#     """,
+#     unsafe_allow_html=True,
+# )
 
 tab0, tab1, tab2, tab3, tab4 = st.tabs(
     ["Heatwave Monitor", "Spatial Observations", "Model Benchmarks", "Vertical Profiles", "Depth Scatter"]
@@ -406,15 +406,22 @@ with tab0:
             annotation_font=dict(color="#f4f7f6", size=11),
         )
     fig_hw.update_layout(
+        title="Heatwave Detector(Test Run)",
         xaxis_title="Day of season window", yaxis_title="SST anomaly (&deg;C)",
         height=450, showlegend=False,
     )
     st.plotly_chart(apply_theme(fig_hw), width="stretch")
+    # st.markdown(
+    #     '<div class="sg-graph-caption">Categories follow the Hobday marine-heatwave scale (Watch &ge; 0.5&deg;C, '
+    #     'Warning &ge; 1.0&deg;C, Severe &ge; 1.5&deg;C, Extreme &ge; 2.0&deg;C above climatology).</div>',
+    #     unsafe_allow_html=True
+    # )
     st.markdown(
-        '<div class="sg-graph-caption">Categories follow the Hobday marine-heatwave scale (Watch &ge; 0.5&deg;C, '
-        'Warning &ge; 1.0&deg;C, Severe &ge; 1.5&deg;C, Extreme &ge; 2.0&deg;C above climatology).</div>',
-        unsafe_allow_html=True,
-    )
+    '<div class="sg-graph-caption">Categories follow the Hobday marine-heatwave scale(Watch ≥ 0.5°C, Warning ≥ 1.0°C, Severe ≥ 1.5°C, Extreme ≥ 2.0°C above climatology).'
+    '<br>'
+    'The Hobday scale is a standard system used to measure how intense a marine heatwave is. It compares the current sea temperature with the normal temperature for that location and time of year. The greater the temperature difference, the higher the heatwave category.</div>',
+    unsafe_allow_html=True
+)
 
 # ----------------------------------------------------------------------
 # TAB 1 - OVERVIEW
@@ -427,7 +434,7 @@ with tab1:
     st.markdown(
         """
         Argo floats measure subsurface ocean temperature directly, but they are
-        sparse in space and time. Satellites see the surface (SST, SSH, salinity,
+        sparse in space and time. Satellites see the surface (Sea Surface Temperature(SST), Sea Surface Height(SSH), salinity,
         wind) continuously and everywhere. This pipeline learns the relationship
         between surface satellite observations and subsurface temperature at
         several depths, so we can estimate subsurface structure in places and
@@ -526,7 +533,7 @@ with tab2:
         text=model_summary["avg_rmse"].round(3),
     )
     fig_summary.update_traces(textposition="outside", textfont=dict(color="#f4f7f6", size=12))
-    fig_summary.update_layout(showlegend=False, height=350)
+    fig_summary.update_layout(title="Model Comparision",showlegend=False, height=350)
     st.plotly_chart(apply_theme(fig_summary), width="stretch")
 
     st.markdown(
@@ -569,7 +576,7 @@ with tab2:
         labels={"depth": "Depth (m)", "rmse": "RMSE (&deg;C)", "method": ""},
     )
     fig_bar.update_traces(line=dict(width=3), marker=dict(size=8))
-    fig_bar.update_layout(legend=dict(orientation="h", y=-0.3), height=480)
+    fig_bar.update_layout(title="Error by Depth",legend=dict(orientation="h", y=-0.3), height=480)
     st.plotly_chart(apply_theme(fig_bar), width="stretch")
 
     st.markdown(
@@ -638,6 +645,7 @@ with tab3:
         )
     )
     fig_profile.update_layout(
+        title="Pick a Float - See the Guess vs. Reality",
         xaxis_title="Temperature (&deg;C)",
         yaxis_title="Depth (m)",
         yaxis=dict(autorange="reversed"),
@@ -683,6 +691,7 @@ with tab4:
         )
     )
     fig_scatter.update_layout(
+        title="Guess Vs Reality",
         xaxis_title=f"Actual temp at {depth_choice}m (&deg;C)",
         yaxis_title=f"Predicted temp at {depth_choice}m (&deg;C)",
         legend=dict(orientation="h", y=-0.15),
