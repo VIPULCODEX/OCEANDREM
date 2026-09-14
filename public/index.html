@@ -25,15 +25,15 @@
       <div class="claim-main">
         <span id="claimHeadline">Model cuts error by –% vs. a naive guess</span>
       </div>
-      <div class="claim-sub">correlation <b id="claimCorr">–</b> · beats Random Forest by <b id="claimVsRf">–</b> ·
-        tested on a controlled scenario — see <a href="#" data-tab-link="how">How it Works</a></div>
+      <div class="claim-sub">correlation <b id="claimCorr">–</b> ·
+        trained and evaluated on real MOSDAC + CMEMS data — see <a href="#" data-tab-link="how">How it Works</a></div>
     </div>
 
     <nav class="tabs" id="tabNav">
       <span class="tab-underline" id="tabUnderline"></span>
       <button class="tab-btn active" data-tab="live">📡 Live Monitor <span class="tab-tag real">Real</span></button>
-      <button class="tab-btn" data-tab="model">🧠 The Model <span class="tab-tag sim">Simulated</span></button>
-      <button class="tab-btn" data-tab="results">📊 Results <span class="tab-tag sim">Simulated</span></button>
+      <button class="tab-btn" data-tab="model">🧠 The Model <span class="tab-tag real">Real</span></button>
+      <button class="tab-btn" data-tab="results">📊 Results <span class="tab-tag real">Real</span></button>
       <button class="tab-btn" data-tab="how">📖 How it Works</button>
     </nav>
 
@@ -102,7 +102,7 @@
 
     <!-- ================= TAB: THE MODEL ================= -->
     <section class="tab-panel" data-tab="model">
-      <p class="tab-intro">The problem: we only have a few hundred underwater thermometers (Argo floats) in the whole basin. This model predicts the missing depths anywhere, using only what satellites see on the surface.</p>
+      <p class="tab-intro">The problem: satellites only ever see the ocean surface. Real underwater temperature measurements are sparse and expensive to collect everywhere. This model predicts the missing depths anywhere in the basin, using only what satellites see on the surface.</p>
 
       <div class="kpi-row kpi-row-3">
         <div class="kpi">
@@ -119,41 +119,41 @@
           <div class="controls" style="justify-content:center; height:100%">
             <button class="ctrl" id="playBtn">⏸ Pause</button>
             <button class="ctrl" id="speedBtn">1x</button>
-            <span id="liveLabel" style="font-size:13px;color:var(--text-dim)">Day 0/90</span>
+            <span id="liveLabel" style="font-size:13px;color:var(--text-dim)">Day 0/26</span>
           </div>
         </div>
       </div>
 
       <div class="grid-2">
         <div class="panel">
-          <h2><span class="panel-title">Surface View + Float Locations <span class="data-badge sim">🔷 SIMULATED</span></span>
+          <h2><span class="panel-title">Surface View + Test Locations <span class="data-badge real">🟢 REAL</span></span>
             <select id="daySelect"></select>
           </h2>
-          <div class="desc">Black × = real float positions (test set). Toggle groups the map into regions with similar underwater behavior.</div>
+          <div class="desc">Black × = real test-set locations (held out from training). Toggle groups the map into regions with similar underwater behavior.</div>
           <div class="toggle-row">
             <label><input type="checkbox" id="clusterToggle" /> Group by region</label>
           </div>
           <div id="mapChart" class="chart chart-lg"></div>
         </div>
         <div class="panel">
-          <h2><span class="panel-title">Heatwave Detector (Test Run) <span class="data-badge sim">🔷 SIMULATED</span></span></h2>
-          <div class="desc">A practice warming event, so you can see the alarm actually trip.</div>
+          <h2><span class="panel-title">Heatwave Detector <span class="data-badge real">🟢 REAL</span></span></h2>
+          <div class="desc">Basin SST anomaly against the pulled window's own mean, over the real observation period.</div>
           <div id="heatwaveChart" class="chart chart-lg"></div>
         </div>
       </div>
 
       <div class="panel">
-        <h2><span class="panel-title">Pick a Float — See the Guess vs. Reality <span class="data-badge sim">🔷 SIMULATED</span></span>
+        <h2><span class="panel-title">Pick a Test Point — See the Guess vs. Reality <span class="data-badge real">🟢 REAL</span></span>
           <select id="profileSelect"></select>
         </h2>
-        <div class="desc">Solid = what the float actually measured. Dashed = what the model guessed from the surface alone.</div>
+        <div class="desc">Solid = the real measured subsurface temperature. Dashed = what the model guessed from the surface alone.</div>
         <div id="profileChart" class="chart chart-md"></div>
       </div>
     </section>
 
     <!-- ================= TAB: RESULTS ================= -->
     <section class="tab-panel" data-tab="results">
-      <p class="tab-intro">How well does the guess match reality? Tested on floats the model never saw during training.</p>
+      <p class="tab-intro">How well does the guess match reality? Tested on real locations the model never saw during training.</p>
 
       <div class="kpi-row kpi-row-3">
         <div class="kpi">
@@ -162,7 +162,7 @@
           <div class="sub">vs. guessing the seasonal average</div>
         </div>
         <div class="kpi">
-          <div class="label">Test floats</div>
+          <div class="label">Test points</div>
           <div class="value" id="kpiFloats">–</div>
           <div class="sub">never used in training</div>
         </div>
@@ -174,14 +174,14 @@
       </div>
 
       <div class="panel">
-        <h2><span class="panel-title">Which Model Wins? <span class="data-badge sim">🔷 SIMULATED</span></span></h2>
+        <h2><span class="panel-title">Which Model Wins? <span class="data-badge real">🟢 REAL</span></span></h2>
         <div class="desc">We trained seven independent approaches (one classical, six different neural-network designs) on the exact same test data. Shorter bar = less error.</div>
         <div id="modelSummaryChart" class="chart chart-md"></div>
       </div>
 
       <div class="grid-3">
         <div class="panel">
-          <h2><span class="panel-title">Error by Depth <span class="data-badge sim">🔷 SIMULATED</span></span></h2>
+          <h2><span class="panel-title">Error by Depth <span class="data-badge real">🟢 REAL</span></span></h2>
           <div class="desc">Same comparison, broken down by depth. Lower line = better.</div>
           <div id="rmseChart" class="chart chart-md"></div>
           <div class="table-scroll">
@@ -189,7 +189,7 @@
           </div>
         </div>
         <div class="panel">
-          <h2><span class="panel-title">Guess vs. Reality <span class="data-badge sim">🔷 SIMULATED</span></span>
+          <h2><span class="panel-title">Guess vs. Reality <span class="data-badge real">🟢 REAL</span></span>
             <select id="depthSelect"></select>
           </h2>
           <div class="desc">Every test point. Dots on the line = exact match.</div>
@@ -201,12 +201,16 @@
     <!-- ================= TAB: HOW IT WORKS ================= -->
     <section class="tab-panel" data-tab="how">
       <div class="disclaimer">
-        <b>ℹ What's real vs. tested on a scenario:</b> The <b>Live Monitor</b> tab is real,
-        current satellite/ocean data (MOSDAC + CMEMS). The <b>Model</b> and <b>Results</b>
-        tabs are trained and tested on a realistic, physics-based simulated season —
-        because we don't yet have real, matched surface+underwater measurements to train
-        on. The model architecture, training, and evaluation are all real; only the
-        training data is simulated. Full detail in the project README.
+        <b>ℹ What's real here, stated plainly:</b> Every tab on this dashboard — Live
+        Monitor, The Model, and Results — now runs on real MOSDAC + CMEMS data. There is
+        no simulated or synthetic data anywhere in this build. Two honest limitations
+        remain: the real feature set covers 4 of the problem statement's 5 required
+        surface inputs (SST, SSS, and surface currents are real; a real surface-wind and
+        SSH/SLA product has not yet been obtained, and neither has any synthetic
+        stand-in — they are simply not modeled), and the "1000 m" depth target is
+        approximated by the deepest native level actually available in the pulled CMEMS
+        extract, approximately 902 m. Full detail in the project README and
+        <code>DATASET.md</code>.
       </div>
 
       <div class="grid-2">
@@ -224,9 +228,9 @@
         <div class="panel">
           <h2>The Pipeline, in Four Steps</h2>
           <ol class="step-list">
-            <li><b>Collect</b> — real satellite surface data (temperature, salinity, currents, chlorophyll) + sparse underwater float readings.</li>
-            <li><b>Train</b> — a neural network learns to map surface patterns to underwater temperature.</li>
-            <li><b>Test</b> — check the guess against floats the network never saw.</li>
+            <li><b>Collect</b> — real satellite surface data (temperature, salinity, currents) + a real multi-depth CMEMS reanalysis extract as the subsurface target.</li>
+            <li><b>Train</b> — seven independent models learn to map surface patterns to underwater temperature.</li>
+            <li><b>Test</b> — check the guess against real locations the models never saw.</li>
             <li><b>Monitor</b> — watch for warming events (heatwaves) as new data comes in.</li>
           </ol>
         </div>
@@ -234,8 +238,8 @@
 
       <div class="source-grid">
         <div class="source-card">
-          <h3>ARGO Floats</h3>
-          <p>Sparse underwater thermometers. Real-data hook: <code>get_argo_data()</code> in the code.</p>
+          <h3>Real Subsurface Target</h3>
+          <p>A real multi-depth CMEMS reanalysis extract (35 native depth levels, ~0.49–902 m) supplies the subsurface temperature target. Real-data loader: <code>build_real_training_table()</code> in <code>real/real_training.py</code>. An independent real Argo float pull (via <code>argopy</code>) was attempted but not completed — see <code>real/PROVENANCE.md</code>.</p>
         </div>
         <div class="source-card">
           <h3>MOSDAC (ISRO) + CMEMS</h3>
@@ -247,7 +251,7 @@
         </div>
         <div class="source-card">
           <h3>Research Basis</h3>
-          <p>Loo et al. 2026 (clustering), Xie et al. 2022 (wind-curl input, Attention U-Net), Wang et al. 2024 (depth-gradient loss, CGKDN) — see <code>PROJECT_REPORT.txt</code> §1b for exactly what was and wasn't implemented from each.</p>
+          <p>Loo et al. 2026 (adaptive spatiotemporal clustering) and Wang et al. 2024 (depth-gradient loss, CGKDN) informed this project's methodology — see <code>DATASET.md</code> and <code>README.md</code> for what was and wasn't carried into the current real-data pipeline. Xie et al. 2022's wind-stress-curl input (Attention U-Net) was considered but not carried forward: it required a real surface-wind product this project doesn't have.</p>
         </div>
       </div>
     </section>

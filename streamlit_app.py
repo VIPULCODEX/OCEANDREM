@@ -1,13 +1,23 @@
 """
 OceanEmbed - Interactive Dashboard
-Streamlit UI around the existing pipeline in ocean_pipeline_demo.py.
 
-Reuses (does not reimplement) the data generation / model training / evaluation
-logic from ocean_pipeline_demo.py. See that file for the real-data integration
-points (argopy / copernicusmarine) and the USE_SYNTHETIC_DATA flag.
+NOT YET UPDATED for the real-data-only pipeline. This file was originally
+built around synthetic/ocean_pipeline_demo.py (now deleted -- the project
+dropped the synthetic data track entirely, see README.md) and several of
+the model-training wrapper functions it imported from models.dl_pipeline
+were removed in the same change, since they were synthetic-pipeline-only.
+Porting this Streamlit app to the real-data pipeline (real/real_training.py)
+is a separate, larger task -- it duplicates significant dashboard logic
+independently of public/app.js, rather than reusing it. The currently
+working option is the static dashboard: see public/ and README.md's
+"Two ways to run this" section.
+
+This file still parses, but will exit immediately with a clear error if
+actually run (`streamlit run streamlit_app.py`), rather than failing with
+a raw traceback on the missing imports below.
 
 Run with:
-    streamlit run app.py
+    streamlit run streamlit_app.py
 """
 
 import numpy as np
@@ -16,23 +26,33 @@ import plotly.graph_objects as go
 import plotly.express as px
 import streamlit as st
 
-from synthetic.ocean_pipeline_demo import (
-    USE_SYNTHETIC_DATA,
-    LAT_RANGE,
-    LON_RANGE,
-    DEPTH_LEVELS,
-    N_DAYS,
-    get_satellite_grid,
-    build_training_table,
-    train_and_evaluate,
-    marine_heatwave_series,
-)
-from models.dl_pipeline import (
-    train_pooled_ffnn_and_evaluate, train_cnn_and_evaluate, train_lstm_and_evaluate,
-    train_vit_and_evaluate, train_autoencoder_and_evaluate, train_gnn_and_evaluate,
-)
-
 st.set_page_config(page_title="Sea Green | OceanEmbed", layout="wide", page_icon="🌊")
+
+try:
+    from synthetic.ocean_pipeline_demo import (
+        USE_SYNTHETIC_DATA,
+        LAT_RANGE,
+        LON_RANGE,
+        DEPTH_LEVELS,
+        N_DAYS,
+        get_satellite_grid,
+        build_training_table,
+        train_and_evaluate,
+        marine_heatwave_series,
+    )
+    from models.dl_pipeline import (
+        train_pooled_ffnn_and_evaluate, train_cnn_and_evaluate, train_lstm_and_evaluate,
+        train_vit_and_evaluate, train_autoencoder_and_evaluate, train_gnn_and_evaluate,
+    )
+except ImportError as e:
+    st.error(
+        "This Streamlit app has not yet been updated for the real-data-only "
+        "pipeline (the synthetic track it was built around was removed). "
+        "Use the static dashboard instead: run `python -m real.export_real_results` "
+        "then open public/index.html, or see README.md's \"Two ways to run this\" "
+        f"section.\n\nImport error: {e}"
+    )
+    st.stop()
 
 # Every model trained/tested, same time-based split, same test set (mirrors
 # export_data.py's MODELS list -- keep the two in sync).

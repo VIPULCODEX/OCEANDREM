@@ -6,9 +6,8 @@ Real-data loaders for Sea Green -- reads the actual downloaded files:
                             "thetao" (sea water potential temperature), single
                             near-surface level (~0.49 m), 6-hourly, 1-26 Aug 2026
 
-These are real satellite / reanalysis products, not synthetic -- unlike
-ocean_pipeline_demo.py, which stays a physically-motivated simulation used
-to validate the ML + heatwave-detection logic end to end (see README for why).
+These are real satellite / reanalysis products. This project has a single,
+real-data-only pipeline -- there is no synthetic data path.
 
 Run `python real/export_real_data.py` after adding/refreshing files in
 real/data/ to regenerate public/data_real.json.

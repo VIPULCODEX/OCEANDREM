@@ -152,8 +152,6 @@ function drawClaimBanner() {
   document.getElementById("claimHeadline").textContent =
     `${m.model_name} cuts error by ${m.avg_rmse_improvement_pct}% vs. a naive guess`;
   document.getElementById("claimCorr").textContent = m.avg_correlation.toFixed(2);
-  document.getElementById("claimVsRf").textContent =
-    `${m.avg_rmse_vs_rf_pct >= 0 ? "" : "-"}${Math.abs(m.avg_rmse_vs_rf_pct)}%`;
   document.getElementById("resultsCorr").textContent = m.avg_correlation.toFixed(2);
 }
 
@@ -420,22 +418,34 @@ function drawModelSummary() {
 function drawMetricsTable() {
   const modelName = DATA.meta.model_name || "Model";
   const baselineName = DATA.meta.baseline_model_name || "Random Forest";
-  const rows = DATA.metrics.map((m) => `
-    <tr>
-      <td>${m.depth} m</td>
-      <td>${m.rmse_baseline.toFixed(3)}</td>
-      <td>${m.rmse_rf.toFixed(3)}</td>
-      <td>${m.rmse_cnn.toFixed(3)}</td>
-      <td>${m.rmse_vit.toFixed(3)}</td>
-      <td>${m.rmse_gnn.toFixed(3)}</td>
-      <td>${m.rmse_autoencoder.toFixed(3)}</td>
-      <td>${m.rmse_lstm.toFixed(3)}</td>
-      <td><b>${m.rmse_model.toFixed(3)}</b></td>
-      <td>${m.correlation.toFixed(3)}</td>
-      <td>${m.bias >= 0 ? "+" : ""}${m.bias.toFixed(3)}</td>
-    </tr>`).join("");
+  // If the headline model IS the fixed reference model (e.g. Random Forest
+  // wins on real data, so it's both "the headline" and "the Random Forest
+  // column"), showing both would just duplicate the same numbers under two
+  // headers -- skip the separate reference column in that case.
+  const skipDuplicateRf = modelName === baselineName;
+
+  const headers = ["Depth", "Naive guess"];
+  if (!skipDuplicateRf) headers.push(baselineName);
+  headers.push("CNN", "ViT", "GNN", "Autoencoder", "LSTM", modelName, "Correlation", "Bias");
+
+  const rows = DATA.metrics.map((m) => {
+    const cells = [`${m.depth} m`, m.rmse_baseline.toFixed(3)];
+    if (!skipDuplicateRf) cells.push(m.rmse_rf.toFixed(3));
+    cells.push(
+      m.rmse_cnn.toFixed(3),
+      m.rmse_vit.toFixed(3),
+      m.rmse_gnn.toFixed(3),
+      m.rmse_autoencoder.toFixed(3),
+      m.rmse_lstm.toFixed(3),
+      `<b>${m.rmse_model.toFixed(3)}</b>`,
+      m.correlation.toFixed(3),
+      `${m.bias >= 0 ? "+" : ""}${m.bias.toFixed(3)}`
+    );
+    return `<tr>${cells.map((c) => `<td>${c}</td>`).join("")}</tr>`;
+  }).join("");
+
   document.getElementById("metricsTable").innerHTML = `
-    <thead><tr><th>Depth</th><th>Naive guess</th><th>${baselineName}</th><th>CNN</th><th>ViT</th><th>GNN</th><th>Autoencoder</th><th>LSTM</th><th>${modelName}</th><th>Correlation</th><th>Bias</th></tr></thead>
+    <thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
     <tbody>${rows}</tbody>`;
 }
 
@@ -466,7 +476,7 @@ function drawProfile() {
   Plotly.newPlot(
     "profileChart",
     [
-      { x: p.actual, y: depths, mode: "lines+markers", name: "Actual (float reading)", line: { color: "#3fcf8e", width: 2 } },
+      { x: p.actual, y: depths, mode: "lines+markers", name: "Actual (real measurement)", line: { color: "#3fcf8e", width: 2 } },
       { x: p.predicted, y: depths, mode: "lines+markers", name: `Predicted (${DATA.meta.model_name || "model"})`, line: { color: "#e58a3a", width: 2, dash: "dash" }, marker: { symbol: "square" } },
     ],
     { ...PLOTLY_DARK, xaxis: { title: "Temperature (°C)", gridcolor: "#1c4a41" }, yaxis: { title: "Depth (m)", autorange: "reversed", gridcolor: "#1c4a41" }, legend: { orientation: "h", y: -0.2 } },
@@ -492,7 +502,7 @@ function renderFrame(idx) {
       x: DATA.argo_test.map((p) => p.lon), y: DATA.argo_test.map((p) => p.lat),
       mode: "markers", type: "scatter",
       marker: { size: 9, color: "#0b0b0b", symbol: "x", line: { width: 1, color: "#fff" } },
-      name: "Argo floats (test set)",
+      name: "Test locations (held out)",
     },
   ];
 

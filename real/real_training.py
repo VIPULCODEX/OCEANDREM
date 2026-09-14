@@ -1,5 +1,6 @@
 """
-Sea Green -- REAL training data, not synthetic.
+Sea Green -- real training data. This is the sole training pipeline in
+this project; there is no synthetic data path.
 
 Builds actual (surface, subsurface) training pairs from the real files in
 this folder:
@@ -12,12 +13,12 @@ this folder:
                                                piece that was missing before:
                                                a real training TARGET.
 
-Honest scope: only SST, SSS, and surface currents are used as input
-features here, because those are the only ones with real data. No
-wind/curl/SSH -- those stay synthetic-only (see ocean_pipeline_demo.py)
-until a real wind/altimetry file is obtained. This is a smaller feature
-set than the synthetic pipeline's, on purpose -- real features only, no
-mixing.
+Scope, stated plainly: only SST, SSS, and surface currents are used as
+input features here, because those are the only ones with a real data
+source. No wind, curl, or SSH -- an earlier build modeled these as
+synthetic-only features; that track has been removed, so these variables
+are simply not modeled at all until a real wind/altimetry file is
+obtained.
 
 Depths: the real subsurface file's native levels don't land exactly on the
 spec's 15 standard depths, so each standard depth is matched to its
