@@ -28,12 +28,12 @@ body {
   background-color: #061412;
   background-image:
     url("data:image/svg+xml,%3Csvg width='160' height='44' viewBox='0 0 160 44' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 22 Q 40 8, 80 22 T 160 22' fill='none' stroke='%233fcf8e' stroke-width='0.8' opacity='0.025'/%3E%3C/svg%3E"),
-    linear-gradient(180deg, rgba(6, 20, 18, 0.55) 0%, rgba(6, 20, 18, 0.75) 100%),
-    url("ocean_bg.jpg");
+    linear-gradient(180deg, rgba(6, 20, 18, 0.45) 0%, rgba(6, 20, 18, 0.65) 100%),
+    url("beautiful-shot-fishes-swimming-ocean.jpg");
   background-attachment: fixed, fixed, fixed;
   background-repeat: repeat-x, no-repeat, no-repeat;
   background-size: 160px 44px, cover, cover;
-  background-position: bottom center, center center, center center;
+  background-position: bottom center, center center, top center;
   color: var(--text);
   font-family: var(--font);
   overflow-x: hidden;
