@@ -1,6 +1,11 @@
 [theme]
-primaryColor = "#2e8b57"
-backgroundColor = "#071c19"
-secondaryBackgroundColor = "#0f322d"
-textColor = "#e8f5f0"
-font = "sans serif"
+# Scientific-instrument palette — cmocean thermal accent
+primaryColor          = "#c0724a"   # thermal warm amber  (buttons, sliders, active elements)
+backgroundColor       = "#071c19"   # deep ocean dark (fallback if bg image fails)
+secondaryBackgroundColor = "#0f322d" # panel / sidebar
+textColor             = "#e8f5f0"   # near-white seafoam
+font                  = "sans serif"
+
+[server]
+# Serve files from ./static/ at /app/static/<filename>
+enableStaticServing = true

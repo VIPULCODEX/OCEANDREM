@@ -6,6 +6,9 @@
   <title>Sea Green | Indian Ocean Marine Heatwave &amp; Subsurface Intelligence</title>
   <meta name="description" content="Sea Green: reconstructing subsurface ocean temperature from surface satellite data to monitor marine heatwaves in the North Indian Ocean." />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%8A%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Lora:ital,wght@0,400..700;1,400..700&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 </head>
@@ -13,7 +16,7 @@
   <div class="wrap">
     <header class="top">
       <div class="brand">
-        <div class="logo">🌊</div>
+        <div class="logo"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e8f5f0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></svg></div>
         <div>
           <h1>Sea Green</h1>
           <p>Guessing what's under the ocean surface, from what satellites can see</p>
@@ -23,27 +26,27 @@
 
     <div class="claim-banner">
       <div class="claim-main">
-        <span id="claimHeadline">Model cuts error by –% vs. a naive guess</span>
+        <span id="claimHeadline">Model cuts error by <span class="skeleton-bar" style="width:40px"></span> vs. a naive guess</span>
       </div>
-      <div class="claim-sub">correlation <b id="claimCorr">–</b> ·
+      <div class="claim-sub">correlation <b id="claimCorr"><span class="skeleton-bar" style="width:36px"></span></b> ·
         trained and evaluated on real MOSDAC + CMEMS data — see <a href="#" data-tab-link="how">How it Works</a></div>
     </div>
 
     <nav class="tabs" id="tabNav">
       <span class="tab-underline" id="tabUnderline"></span>
-      <button class="tab-btn active" data-tab="live">📡 Live Monitor <span class="tab-tag real">Real</span></button>
-      <button class="tab-btn" data-tab="model">🧠 The Model <span class="tab-tag real">Real</span></button>
-      <button class="tab-btn" data-tab="results">📊 Results <span class="tab-tag real">Real</span></button>
-      <button class="tab-btn" data-tab="how">📖 How it Works</button>
+      <button class="tab-btn active" data-tab="live"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><path d="M4 10a7.97 7.97 0 0 1 6-6"/><path d="M2 14a11.96 11.96 0 0 1 10-10"/><path d="m8 20 4-4"/><path d="m12 16 7-7a2.83 2.83 0 1 0-4-4l-7 7Z"/><path d="m17 7 3-3"/></svg>Live Monitor <span class="tab-tag real">Real</span></button>
+      <button class="tab-btn" data-tab="model"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><rect width="6" height="6" x="16" y="16" rx="1"/><rect width="6" height="6" x="2" y="16" rx="1"/><rect width="6" height="6" x="9" y="2" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></svg>The Model <span class="tab-tag real">Real</span></button>
+      <button class="tab-btn" data-tab="results"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>Results <span class="tab-tag real">Real</span></button>
+      <button class="tab-btn" data-tab="how"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 2v20"/></svg>How it Works</button>
     </nav>
 
     <!-- Mobile-only glass bottom nav (shown <=640px instead of the tab strip above) -->
     <nav class="bottom-nav" id="bottomNav">
       <span class="liquid-indicator" id="liquidIndicator"></span>
-      <button class="tab-btn bottom-tab-btn active" data-tab="live"><span class="icon">📡</span>Live</button>
-      <button class="tab-btn bottom-tab-btn" data-tab="model"><span class="icon">🧠</span>Model</button>
-      <button class="tab-btn bottom-tab-btn" data-tab="results"><span class="icon">📊</span>Results</button>
-      <button class="tab-btn bottom-tab-btn" data-tab="how"><span class="icon">📖</span>Info</button>
+      <button class="tab-btn bottom-tab-btn active" data-tab="live"><span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10a7.97 7.97 0 0 1 6-6"/><path d="M2 14a11.96 11.96 0 0 1 10-10"/><path d="m8 20 4-4"/><path d="m12 16 7-7a2.83 2.83 0 1 0-4-4l-7 7Z"/><path d="m17 7 3-3"/></svg></span>Live</button>
+      <button class="tab-btn bottom-tab-btn" data-tab="model"><span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="6" height="6" x="16" y="16" rx="1"/><rect width="6" height="6" x="2" y="16" rx="1"/><rect width="6" height="6" x="9" y="2" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></svg></span>Model</button>
+      <button class="tab-btn bottom-tab-btn" data-tab="results"><span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span>Results</button>
+      <button class="tab-btn bottom-tab-btn" data-tab="how"><span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 2v20"/></svg></span>Info</button>
     </nav>
 
     <!-- ================= TAB: LIVE MONITOR ================= -->
@@ -53,13 +56,13 @@
       <div class="kpi-row kpi-row-3">
         <div class="kpi">
           <div class="label">Live Basin SST (CMEMS)</div>
-          <div class="value" id="realSstValue">–</div>
-          <div class="sub" id="realSstDate">–</div>
+          <div class="value" id="realSstValue"><span class="skeleton-bar" style="width:80px"></span></div>
+          <div class="sub" id="realSstDate"><span class="skeleton-bar" style="width:100px"></span></div>
         </div>
         <div class="kpi">
           <div class="label">Anomaly vs. window mean</div>
-          <div class="value"><span class="chip Normal" id="realChip">–</span></div>
-          <div class="sub" id="realAnomalyValue">–</div>
+          <div class="value"><span class="chip Normal" id="realChip"><span class="skeleton-bar" style="width:45px"></span></span></div>
+          <div class="sub" id="realAnomalyValue"><span class="skeleton-bar" style="width:90px"></span></div>
         </div>
         <div class="kpi">
           <div class="label">Region</div>
@@ -70,15 +73,15 @@
 
       <div class="grid-2">
         <div class="panel">
-          <h2><span class="panel-title">Sea Temperature &amp; Salinity <span class="data-badge real">🟢 REAL</span></span></h2>
+          <h2><span class="panel-title">Sea Temperature &amp; Salinity <span class="data-badge real"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-1px"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>REAL</span></span></h2>
           <div class="desc">Daily average, real CMEMS data.</div>
           <div id="realTrendChart" class="chart chart-md"></div>
         </div>
         <div class="panel">
-          <h2><span class="panel-title">Live Satellite Pass <span class="data-badge real">🟢 REAL</span></span>
+          <h2><span class="panel-title">Live Satellite Pass <span class="data-badge real"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-1px"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>REAL</span></span>
             <span class="controls" style="gap:6px">
-              <button class="ctrl" id="realPlayBtn" style="padding:4px 9px;font-size:12px">⏸</button>
-              <span id="realFrameLabel" style="font-size:12px;color:var(--text-dim)">–</span>
+              <button class="ctrl" id="realPlayBtn" style="padding:4px 9px;font-size:12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><line x1="10" x2="10" y1="4" y2="20"/><line x1="14" x2="14" y1="4" y2="20"/></svg></button>
+              <span id="realFrameLabel" style="font-size:12px;color:var(--text-dim)"><span class="skeleton-bar" style="width:80px"></span></span>
             </span>
           </h2>
           <div class="desc">Real INSAT-3DR satellite images (MOSDAC/ISRO), half-hourly.</div>
@@ -88,12 +91,12 @@
 
       <div class="grid-2">
         <div class="panel">
-          <h2><span class="panel-title">Ocean Currents <span class="data-badge real">🟢 REAL</span></span></h2>
+          <h2><span class="panel-title">Ocean Currents <span class="data-badge real"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-1px"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>REAL</span></span></h2>
           <div class="desc" id="currentsDesc">Real current speed &amp; direction.</div>
           <div id="currentsChart" class="chart chart-md"></div>
         </div>
         <div class="panel">
-          <h2><span class="panel-title">Chlorophyll (Ecosystem Health) <span class="data-badge real">🟢 REAL</span></span></h2>
+          <h2><span class="panel-title">Chlorophyll (Ecosystem Health) <span class="data-badge real"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-1px"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>REAL</span></span></h2>
           <div class="desc">A warmer ocean can starve plankton of nutrients — this tracks that effect.</div>
           <div id="chlChart" class="chart chart-md"></div>
         </div>
@@ -107,13 +110,13 @@
       <div class="kpi-row kpi-row-3">
         <div class="kpi">
           <div class="label">Basin SST anomaly</div>
-          <div class="value" id="kpiAnomaly">–</div>
-          <div class="sub" id="kpiCategory">–</div>
+          <div class="value" id="kpiAnomaly"><span class="skeleton-bar" style="width:80px"></span></div>
+          <div class="sub" id="kpiCategory"><span class="skeleton-bar" style="width:60px"></span></div>
         </div>
         <div class="kpi">
           <div class="label">Heatwave status</div>
           <div class="value"><span class="chip Normal" id="kpiChip">Normal</span></div>
-          <div class="sub" id="kpiPeak">–</div>
+          <div class="sub" id="kpiPeak"><span class="skeleton-bar" style="width:90px"></span></div>
         </div>
         <div class="kpi">
           <div class="controls" style="justify-content:center; height:100%">
@@ -126,7 +129,7 @@
 
       <div class="grid-2">
         <div class="panel">
-          <h2><span class="panel-title">Surface View + Test Locations <span class="data-badge real">🟢 REAL</span></span>
+          <h2><span class="panel-title">Surface View + Test Locations <span class="data-badge real"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-1px"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>REAL</span></span>
             <select id="daySelect"></select>
           </h2>
           <div class="desc">Black × = real test-set locations (held out from training). Toggle groups the map into regions with similar underwater behavior.</div>
@@ -136,14 +139,14 @@
           <div id="mapChart" class="chart chart-lg"></div>
         </div>
         <div class="panel">
-          <h2><span class="panel-title">Heatwave Detector <span class="data-badge real">🟢 REAL</span></span></h2>
+          <h2><span class="panel-title">Heatwave Detector <span class="data-badge real"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-1px"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>REAL</span></span></h2>
           <div class="desc">Basin SST anomaly against the pulled window's own mean, over the real observation period.</div>
           <div id="heatwaveChart" class="chart chart-lg"></div>
         </div>
       </div>
 
       <div class="panel">
-        <h2><span class="panel-title">Pick a Test Point — See the Guess vs. Reality <span class="data-badge real">🟢 REAL</span></span>
+        <h2><span class="panel-title">Pick a Test Point — See the Guess vs. Reality <span class="data-badge real"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-1px"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>REAL</span></span>
           <select id="profileSelect"></select>
         </h2>
         <div class="desc">Solid = the real measured subsurface temperature. Dashed = what the model guessed from the surface alone.</div>
@@ -158,30 +161,30 @@
       <div class="kpi-row kpi-row-3">
         <div class="kpi">
           <div class="label">Error reduction</div>
-          <div class="value" id="kpiSkill">–</div>
+          <div class="value" id="kpiSkill"><span class="skeleton-bar" style="width:70px"></span></div>
           <div class="sub">vs. guessing the seasonal average</div>
         </div>
         <div class="kpi">
           <div class="label">Test points</div>
-          <div class="value" id="kpiFloats">–</div>
+          <div class="value" id="kpiFloats"><span class="skeleton-bar" style="width:50px"></span></div>
           <div class="sub">never used in training</div>
         </div>
         <div class="kpi">
           <div class="label">Correlation</div>
-          <div class="value" id="resultsCorr">–</div>
+          <div class="value" id="resultsCorr"><span class="skeleton-bar" style="width:60px"></span></div>
           <div class="sub">1.0 = perfect match</div>
         </div>
       </div>
 
       <div class="panel">
-        <h2><span class="panel-title">Which Model Wins? <span class="data-badge real">🟢 REAL</span></span></h2>
+        <h2><span class="panel-title">Which Model Wins? <span class="data-badge real"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-1px"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>REAL</span></span></h2>
         <div class="desc">We trained seven independent approaches (one classical, six different neural-network designs) on the exact same test data. Shorter bar = less error.</div>
         <div id="modelSummaryChart" class="chart chart-md"></div>
       </div>
 
       <div class="grid-3">
         <div class="panel">
-          <h2><span class="panel-title">Error by Depth <span class="data-badge real">🟢 REAL</span></span></h2>
+          <h2><span class="panel-title">Error by Depth <span class="data-badge real"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-1px"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>REAL</span></span></h2>
           <div class="desc">Same comparison, broken down by depth. Lower line = better.</div>
           <div id="rmseChart" class="chart chart-md"></div>
           <div class="table-scroll">
@@ -189,7 +192,7 @@
           </div>
         </div>
         <div class="panel">
-          <h2><span class="panel-title">Guess vs. Reality <span class="data-badge real">🟢 REAL</span></span>
+          <h2><span class="panel-title">Guess vs. Reality <span class="data-badge real"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-1px"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>REAL</span></span>
             <select id="depthSelect"></select>
           </h2>
           <div class="desc">Every test point. Dots on the line = exact match.</div>
@@ -218,7 +221,7 @@
           <h2>Satellite View — North Indian Ocean</h2>
           <div class="desc">Live NASA imagery of the study region, on NASA's own site (they block embedding it directly, so this opens in a new tab).</div>
           <a id="worldviewLink" class="satellite-launch" href="#" target="_blank" rel="noopener">
-            <span class="satellite-launch-icon">🛰️</span>
+            <span class="satellite-launch-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--sea-bright)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10a7.97 7.97 0 0 1 6-6"/><path d="M2 14a11.96 11.96 0 0 1 10-10"/><path d="m8 20 4-4"/><path d="m12 16 7-7a2.83 2.83 0 1 0-4-4l-7 7Z"/><path d="m17 7 3-3"/></svg></span>
             <span>
               <b>Open NASA Worldview</b>
               <span class="satellite-launch-sub">True-color satellite view, 5–30°N 45–105°E ↗</span>
