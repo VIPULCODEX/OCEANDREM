@@ -16,3 +16,4 @@ MOSDAC/
 # Internal working document (development log / handoff notes). Kept
 # locally for reference; intentionally excluded from version control.
 PROJECT_REPORT.txt
+.env*

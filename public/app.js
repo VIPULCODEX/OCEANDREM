@@ -313,9 +313,6 @@ function populateSelectors() {
 
   document.getElementById("kpiFloats").textContent = DATA.argo_test.length;
   document.getElementById("kpiSkill").textContent = `-${DATA.meta.avg_rmse_improvement_pct}%`;
-  const peak = DATA.meta.peak_event;
-  document.getElementById("kpiPeak").textContent =
-    `Season peak: day ${peak.day}, +${peak.anomaly}°C (${peak.category})`;
 
   const [lo, hi] = DATA.meta.region.lon_range;
   const [latlo, lathi] = DATA.meta.region.lat_range;
@@ -325,7 +322,21 @@ function populateSelectors() {
   document.getElementById("worldviewLink").href = wv;
 }
 
+function drawHeatwaveKpis() {
+  const series = DATA.heatwave_series;
+  const peak = series.reduce((a, b) => (b.anomaly > a.anomaly ? b : a), series[0]);
+  const peakFrame = DATA.grids.find((g) => g.day === peak.day);
+  const peakSst = peakFrame ? peakFrame.sst.reduce((s, v) => s + v, 0) / peakFrame.sst.length : null;
+
+  document.getElementById("kpiPeakAnomaly").textContent = `${peak.anomaly >= 0 ? "+" : ""}${peak.anomaly.toFixed(2)}°C`;
+  document.getElementById("kpiPeakCategory").textContent = peak.category;
+  document.getElementById("kpiPeakSst").textContent = peakSst !== null ? `${peakSst.toFixed(2)}°C` : "—";
+  document.getElementById("kpiDaysMonitored").textContent = DATA.meta.n_days;
+  document.getElementById("kpiPeakDay").textContent = `Day ${peak.day} peak`;
+}
+
 function drawStatic() {
+  drawHeatwaveKpis();
   drawModelSummary();
 
   // Per-depth comparison as LINES, not grouped bars -- five series as bars
@@ -522,13 +533,11 @@ function renderFrame(idx) {
   document.getElementById("daySelect").value = frame.day;
   document.getElementById("liveLabel").textContent = `Day ${frame.day} / ${DATA.meta.n_days}`;
 
-  const hw = DATA.heatwave_series[frame.day] || DATA.heatwave_series[DATA.heatwave_series.length - 1];
-  document.getElementById("kpiAnomaly").textContent = `${hw.anomaly >= 0 ? "+" : ""}${hw.anomaly.toFixed(2)}°C`;
-  document.getElementById("kpiCategory").textContent = "vs. climatology baseline";
-  const chip = document.getElementById("kpiChip");
-  chip.textContent = hw.category;
-  chip.className = `chip ${hw.category}`;
+  const basinMean = frame.sst.reduce((s, v) => s + v, 0) / frame.sst.length;
+  document.getElementById("spatialBasinSst").textContent = `${basinMean.toFixed(2)}°C`;
+  document.getElementById("spatialTestPoints").textContent = DATA.argo_test.length;
 
+  const hw = DATA.heatwave_series[frame.day] || DATA.heatwave_series[DATA.heatwave_series.length - 1];
   Plotly.restyle("heatwaveChart", { x: [[frame.day]], y: [[hw.anomaly]] }, [1]);
 }
 

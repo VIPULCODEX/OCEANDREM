@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# Raw real-data source files -- large (100s of MB to ~800 MB each), not
+# needed to serve the static dashboard (public/data_real.json is the
+# derived, compact copy actually served).
+MOSDAC/
+*.nc
+
+PROJECT_REPORT.txt
+.env*
+.git/
